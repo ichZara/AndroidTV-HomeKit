@@ -125,6 +125,11 @@ If you encounter a bug, crash, or key mapping mismatch on your TV model, please 
 When reporting, please include your **TV brand, exact model code, and Android OS version**.
 
 ---
+
+## Other Repositories
+Explore more open-source Android TV and smart home projects on my **[GitHub Profile (@ichZara)](https://github.com/ichZara)**.
+
+---
 ---
 
 # 🇹🇷 Türkçe Dokümantasyon
@@ -223,3 +228,8 @@ Bildirirken televizyonunuzun **markasını, tam model kodunu ve Android sürüm�
 
 ## Lisans / License
 MIT License. Based on original project by `samuelthomas2774/android-tv-homekit`.
+
+---
+
+## Diğer Projeler
+Geliştirdiğim diğer açık kaynaklı Android TV ve akıllı ev projelerine göz atmak için **[GitHub Profilimi (@ichZara)](https://github.com/ichZara)** ziyaret edebilirsiniz.
