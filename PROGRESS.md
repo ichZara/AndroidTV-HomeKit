@@ -11,12 +11,10 @@
 - 2026-10-25: Added full English installation instructions including ADB commands and source build options.
 
 ## Open issues / Next
-- [Yarın bakılacak] iOS Home kumandada ses kontrolü:
-  - Apple TV Remote arayüzünde ekranda ses tuşları bulunmaz; Apple'ın HomeKit TV standardına göre ses, iPhone'un fiziksel yan tuşları (+/-) ile yönetilir.
-  - Fiziksel tuşların tetiklenmesi için `TelevisionService`'in `getLinkedServices()` metoduna `TelevisionSpeakerService`'in bağlanması (`linkedServices.add(speaker)`) ve `VolumeControlType` / `VolumeSelector` akışının doğrulanması gerekiyor.
-- [Yarın bakılacak] iOS Home TV aksesuar arayüzü ve kumanda tuşları:
-  - TV aksesuarına basıldığında çıkan arayüzün dağınık görünmesinin sebebi tüm TIF/uygulama girişlerinin (InputSource) filtrelenmeden listelenmesi. Giriş kaynaklarının görünürlük (`TargetVisibilityState`, `CurrentVisibilityState`, `IsConfigured`) ayarları düzenlenecek.
-  - iOS Denetim Merkezi (Control Center) kumandası ve Home içi kumanda ikonu entegrasyonu netleştirilecek.
+- [HomeKit Bağımlılıkları] Projedeki 7 yıl öncesinden kalma eski kütüphanelerin (commons-io:2.4, jmdns:3.4.1, srp6a, bouncycastle, hap-java alt modülü) güncellenmesi ve modernize edilmesi.
+- [Siri / InputSource] Siri'ye "YouTube'u aç" dendiğinde açılmama nedeni: HomeKit TV standardında uygulamalar "Giriş Kaynağı" (Input Source) olarak tanımlanır. Apple ekosisteminde "YouTube'a geç" / "Televizyonun girişini YouTube yap" denmelidir. Ayrıca tüm sistem girişleri listelendiği için HomeKit giriş sınırına takılmaktadır; giriş listesi sadeleştirilecek.
+- [Ses Kontrolü] Apple TV Remote kumandasında iPhone fiziksel ses tuşlarının TV sesine bağlanması (`TelevisionService` -> `TelevisionSpeaker` linked service).
+- [Arayüz Sadeleştirme] Home uygulamasındaki TV aksesuarında yüzlerce gereksiz TIF girişinin gizlenip yalnızca temel girişlerin (HDMI, TV) bırakılması.
 
 ## Log
 - 2026-10-25: Separated English and Turkish README sections and added English installation guide — `README.md` — verified on GitHub.
