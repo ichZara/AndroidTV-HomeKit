@@ -2,27 +2,21 @@ package uk.org.fancy.AndroidTvHomeKit.Philips.xtv;
 
 import java.io.StringReader;
 import java.io.StringWriter;
-import java.net.URL;
-import java.net.MalformedURLException;
 import java.util.concurrent.CompletableFuture;
 import java.util.Collections;
 import java.util.List;
 import java.util.LinkedList;
 import javax.json.Json;
 import javax.json.JsonObject;
-import javax.json.JsonObjectBuilder;
 import javax.json.JsonArray;
 import javax.json.JsonValue;
 import javax.json.JsonString;
 import android.util.Log;
-import org.asynchttpclient.AsyncHttpClient;
-import org.asynchttpclient.DefaultAsyncHttpClient;
-import org.asynchttpclient.DefaultAsyncHttpClientConfig;
 import org.asynchttpclient.Response;
 
 public class XTvAmbilightHttp {
     private final static String TAG = "HomeKit:XTvAmbilightHttp";
-    final static String baseUrl = "http://127.0.0.1:1925/6/ambilight/";
+    final static String baseUrl = XTvHttp.secureBaseUrl + "ambilight/";
     private final XTvHttp xtvhttp;
 
     public XTvAmbilightHttp(XTvHttp xtvhttp) {
@@ -30,47 +24,15 @@ public class XTvAmbilightHttp {
     }
 
     public CompletableFuture<Response> get(String url) {
-        String pathname;
-        try {
-            pathname = (new URL(url)).getPath();
-        } catch (MalformedURLException e) {
-            throw new RuntimeException(e);
-        }
-
-        Log.d(TAG, "Sending GET " + url);
-
-        CompletableFuture<Response> whenResponse = xtvhttp.http
-            .prepareGet(url)
-            .execute()
-            .toCompletableFuture();
-
-        return whenResponse;
+        return xtvhttp.get(url);
     }
 
     public CompletableFuture<Response> post(String url, JsonObject object) {
-        StringWriter writer = new StringWriter();
-        Json.createWriter(writer).write(object);
-        return post(url, "application/json", writer.toString());
+        return xtvhttp.post(url, object);
     }
 
     public CompletableFuture<Response> post(String url, String mimeType, String body) {
-        String pathname;
-        try {
-            pathname = (new URL(url)).getPath();
-        } catch (MalformedURLException e) {
-            throw new RuntimeException(e);
-        }
-
-        Log.d(TAG, "Sending POST " + url + " " + body);
-
-        CompletableFuture<Response> whenResponse = xtvhttp.http
-            .preparePost(url)
-            .addHeader("Content-Type", mimeType)
-            .setBody(body)
-            .execute()
-            .toCompletableFuture();
-
-        return whenResponse;
+        return xtvhttp.post(url, mimeType, body);
     }
 
     public class Topology {
@@ -162,7 +124,7 @@ public class XTvAmbilightHttp {
             Log.d(TAG, "Got /power response " + body);
             JsonObject powerstate = Json.createReader(new StringReader(body)).readObject();
 
-            switch (powerstate.getString("power")) {
+            switch (powerstate.getString("power", "Off")) {
                 case "On": return EnabledState.ON;
                 default: case "Off": return EnabledState.OFF;
             }
@@ -235,7 +197,7 @@ public class XTvAmbilightHttp {
             List<ProcessedColoursLayer> processedColours = new LinkedList<ProcessedColoursLayer>();
 
             for (String key: processedColoursObject.keySet()) {
-                if (key.substring(0, 5) != "layer") continue;
+                if (!key.startsWith("layer")) continue;
                 JsonValue layer = processedColoursObject.get(key);
                 if (!(layer instanceof JsonObject)) continue;
 
@@ -254,7 +216,7 @@ public class XTvAmbilightHttp {
             List<ProcessedColoursLayer> processedColours = new LinkedList<ProcessedColoursLayer>();
 
             for (String key: processedColoursObject.keySet()) {
-                if (key.substring(0, 5) != "layer") continue;
+                if (!key.startsWith("layer")) continue;
                 JsonValue layer = processedColoursObject.get(key);
                 if (!(layer instanceof JsonObject)) continue;
 
@@ -273,7 +235,7 @@ public class XTvAmbilightHttp {
             List<ProcessedColoursLayer> processedColours = new LinkedList<ProcessedColoursLayer>();
 
             for (String key: processedColoursObject.keySet()) {
-                if (key.substring(0, 5) != "layer") continue;
+                if (!key.startsWith("layer")) continue;
                 JsonValue layer = processedColoursObject.get(key);
                 if (!(layer instanceof JsonObject)) continue;
 
@@ -283,8 +245,6 @@ public class XTvAmbilightHttp {
             return Collections.unmodifiableList(processedColours);
         });
     }
-
-    // TODO: set cached colours
 
     public static class Colour {
         public final int hue; // 0-255
@@ -298,9 +258,9 @@ public class XTvAmbilightHttp {
         }
 
         public Colour(JsonObject colour) {
-            hue = colour.getInt("hue");
-            saturation = colour.getInt("saturation");
-            brightness = colour.getInt("brightness");
+            hue = colour.getInt("hue", 0);
+            saturation = colour.getInt("saturation", 0);
+            brightness = colour.getInt("brightness", 0);
         }
 
         public JsonObject toJsonObject() {
@@ -338,11 +298,9 @@ public class XTvAmbilightHttp {
     }
 
     public enum LoungeMode {
-        DEFAULT, // Default
-        AUTOMATIC, // Automatic
+        DEFAULT,
+        AUTOMATIC,
     }
-
-    // TODO: lounge mode
 
     public static class Configuration {
         public final Style style;
@@ -416,7 +374,7 @@ public class XTvAmbilightHttp {
         }
 
         public Configuration(JsonObject configuration) {
-            switch (configuration.getString("styleName")) {
+            switch (configuration.getString("styleName", "OFF")) {
                 case "OFF": style = Style.OFF; break;
                 case "FOLLOW_VIDEO": style = Style.FOLLOW_VIDEO; break;
                 case "FOLLOW_AUDIO": style = Style.FOLLOW_AUDIO; break;
@@ -424,10 +382,10 @@ public class XTvAmbilightHttp {
                 default: style = Style.UNKNOWN; break;
             }
 
-            isExpert = configuration.getBoolean("isExpert");
+            isExpert = configuration.getBoolean("isExpert", false);
 
             if (style == Style.FOLLOW_VIDEO) {
-                switch (configuration.getString("menuSetting")) {
+                switch (configuration.getString("menuSetting", "STANDARD")) {
                     case "STANDARD": videoAlgorithm = VideoAlgorithm.STANDARD; break;
                     case "NATURAL": videoAlgorithm = VideoAlgorithm.NATURAL; break;
                     case "IMMERSIVE": videoAlgorithm = VideoAlgorithm.IMMERSIVE; break;
@@ -440,7 +398,7 @@ public class XTvAmbilightHttp {
             } else videoAlgorithm = null;
 
             if (style == Style.FOLLOW_AUDIO) {
-                switch (configuration.getString("menuSetting")) {
+                switch (configuration.getString("menuSetting", "ENERGY_ADAPTIVE_BRIGHTNESS")) {
                     case "ENERGY_ADAPTIVE_BRIGHTNESS": audioAlgorithm = AudioAlgorithm.ENERGY_ADAPTIVE_BRIGHTNESS; break;
                     case "ENERGY_ADAPTIVE_COLORS": audioAlgorithm = AudioAlgorithm.ENERGY_ADAPTIVE_COLORS; break;
                     case "VU_METER": audioAlgorithm = AudioAlgorithm.VU_METER; break;
@@ -453,7 +411,7 @@ public class XTvAmbilightHttp {
             } else audioAlgorithm = null;
 
             if (style == Style.FOLLOW_COLOUR && !isExpert) {
-                switch (configuration.getString("menuSetting")) {
+                switch (configuration.getString("menuSetting", "HOT_LAVA")) {
                     case "HOT_LAVA": colour = ColourPreset.HOT_LAVA; break;
                     case "DEEP_WATER": colour = ColourPreset.DEEP_WATER; break;
                     case "FRESH_NATURE": colour = ColourPreset.FRESH_NATURE; break;
@@ -463,11 +421,11 @@ public class XTvAmbilightHttp {
                 }
             } else colour = null;
 
-            if (style == Style.FOLLOW_COLOUR && isExpert) {
+            if (style == Style.FOLLOW_COLOUR && isExpert && configuration.containsKey("colorSettings")) {
                 JsonObject colours = configuration.getJsonObject("colorSettings");
                 manualColour = new Colour(colours.getJsonObject("color"));
                 manualColourDelta = new Colour(colours.getJsonObject("colorDelta"));
-                speed = colours.getInt("speed");
+                speed = colours.getInt("speed", 0);
             } else {
                 manualColour = null;
                 manualColourDelta = null;
@@ -484,7 +442,7 @@ public class XTvAmbilightHttp {
                     videoAlgorithm == VideoAlgorithm.VIVID ? "VIVID" :
                     videoAlgorithm == VideoAlgorithm.GAME ? "GAME" :
                     videoAlgorithm == VideoAlgorithm.COMFORT ? "COMFORT" :
-                    videoAlgorithm == VideoAlgorithm.RELAX ? "RELAX" : null)
+                    videoAlgorithm == VideoAlgorithm.RELAX ? "RELAX" : "STANDARD")
                 .build();
 
             if (style == Style.FOLLOW_AUDIO) return Json.createObjectBuilder()
@@ -496,7 +454,7 @@ public class XTvAmbilightHttp {
                     audioAlgorithm == AudioAlgorithm.SPECTRUM_ANALYSER ? "SPECTRUM_ANALYSER" :
                     audioAlgorithm == AudioAlgorithm.KNIGHT_RIDER_ALTERNATING ? "KNIGHT_RIDER_ALTERNATING" :
                     audioAlgorithm == AudioAlgorithm.RANDOM_PIXEL_FLASH ? "RANDOM_PIXEL_FLASH" :
-                    audioAlgorithm == AudioAlgorithm.MODE_RANDOM ? "MODE_RANDOM" : null)
+                    audioAlgorithm == AudioAlgorithm.MODE_RANDOM ? "MODE_RANDOM" : "ENERGY_ADAPTIVE_BRIGHTNESS")
                 .build();
 
             if (style == Style.FOLLOW_COLOUR && !isExpert) return Json.createObjectBuilder()
@@ -505,7 +463,7 @@ public class XTvAmbilightHttp {
                     colour == ColourPreset.DEEP_WATER ? "DEEP_WATER" :
                     colour == ColourPreset.FRESH_NATURE ? "FRESH_NATURE" :
                     colour == ColourPreset.ISF ? "ISF" :
-                    colour == ColourPreset.PTA_LOUNGE ? "PTA_LOUNGE" : null)
+                    colour == ColourPreset.PTA_LOUNGE ? "PTA_LOUNGE" : "HOT_LAVA")
                 .build();
 
             if (style == Style.FOLLOW_COLOUR && isExpert) return Json.createObjectBuilder()
@@ -531,31 +489,31 @@ public class XTvAmbilightHttp {
     }
 
     public enum VideoAlgorithm {
-        STANDARD, // Standard
-        NATURAL, // Natural
-        IMMERSIVE, // Immersive/Football
-        VIVID, // Vivid
-        GAME, // Game
-        COMFORT, // Comfort
-        RELAX, // Relax
+        STANDARD,
+        NATURAL,
+        IMMERSIVE,
+        VIVID,
+        GAME,
+        COMFORT,
+        RELAX,
     }
 
     public enum AudioAlgorithm {
-        ENERGY_ADAPTIVE_BRIGHTNESS, // Lumina
-        ENERGY_ADAPTIVE_COLORS, // Colora
-        VU_METER, // Retro
-        SPECTRUM_ANALYSER, // Spectrum
-        KNIGHT_RIDER_ALTERNATING, // Scanner
-        RANDOM_PIXEL_FLASH, // Rhythm
-        MODE_RANDOM, // Party
+        ENERGY_ADAPTIVE_BRIGHTNESS,
+        ENERGY_ADAPTIVE_COLORS,
+        VU_METER,
+        SPECTRUM_ANALYSER,
+        KNIGHT_RIDER_ALTERNATING,
+        RANDOM_PIXEL_FLASH,
+        MODE_RANDOM,
     }
 
     public enum ColourPreset {
-        HOT_LAVA, // Hot Lava/Hot lava
-        DEEP_WATER, // Deep Water/Deep water
-        FRESH_NATURE, // Fresh Nature/Fresh nature
-        ISF, // Warm White
-        PTA_LOUNGE, // Cool White/Cool white
+        HOT_LAVA,
+        DEEP_WATER,
+        FRESH_NATURE,
+        ISF,
+        PTA_LOUNGE,
     }
 
     public CompletableFuture<Configuration> getConfiguration() {
@@ -615,7 +573,7 @@ public class XTvAmbilightHttp {
             Log.d(TAG, "Got /mode response " + body);
             JsonObject mode = Json.createReader(new StringReader(body)).readObject();
 
-            switch (mode.getString("current")) {
+            switch (mode.getString("current", "internal")) {
                 default: case "internal": return Mode.INTERNAL;
                 case "manual": return Mode.MANUAL;
                 case "expert": return Mode.EXPERT;

@@ -8,7 +8,7 @@ import java.util.concurrent.ConcurrentMap;
 class AuthState implements Serializable {
     private static final long serialVersionUID = 1L;
     String PIN;
-    final String mac;
+    String mac;
     final BigInteger salt;
     final byte[] privateKey;
     final ConcurrentMap<String, byte[]> userKeyMap = new ConcurrentHashMap<>();

@@ -18,7 +18,7 @@ public class HomeScreenInputSource extends InputSource {
     }
 
     public String getName() {
-        return "Home";
+        return "Ana Ekran";
     }
 
     public InputSourceTypes getInputSourceType() {
@@ -26,7 +26,6 @@ public class HomeScreenInputSource extends InputSource {
     }
 
     public boolean isConfigured() {
-        // TODO: return false for tuners with no configured channels (and inputs with nothing connected?)
         return true;
     }
 
@@ -35,16 +34,13 @@ public class HomeScreenInputSource extends InputSource {
     }
 
     public String getConfiguredName() {
-        return "";
+        return getName();
     }
 
     public void setConfiguredName(String name) {
         Log.i(TAG, "Set configured name " + getName() + " to " + name);
     }
 
-    /**
-     * Set the current source to this.
-     */
     public void activate() {
         inputSourceManager.television.keypress(XTvHttp.RemoteKey.HOME);
     }

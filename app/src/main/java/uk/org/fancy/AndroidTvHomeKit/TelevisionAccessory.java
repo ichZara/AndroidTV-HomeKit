@@ -41,7 +41,8 @@ public class TelevisionAccessory implements HomekitAccessory, Bridge {
 	}
 
 	public String getLabel() {
-		return "Android TV";
+		String name = service.implementation.getName();
+		return (name != null && !name.isEmpty()) ? name : "Philips Android TV";
 	}
 
 	public void identify() {

@@ -1,18 +1,11 @@
 package uk.org.fancy.AndroidTvHomeKit;
 
 import java.io.IOException;
-import java.net.InetAddress;
-import java.net.UnknownHostException;
-import java.util.HashMap;
-import java.util.Map;
-import android.content.Context;
 import android.net.nsd.NsdManager;
 import android.net.nsd.NsdManager.RegistrationListener;
 import android.net.nsd.NsdServiceInfo;
 import android.util.Log;
 import io.github.hapjava.HomekitAdvertiser;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 public class Advertiser implements HomekitAdvertiser {
     private static final String TAG = "HomeKit:Advertiser";
@@ -21,50 +14,44 @@ public class Advertiser implements HomekitAdvertiser {
 
     private boolean discoverable = true;
     private boolean isAdvertising = false;
-    private NsdServiceInfo serviceInfo;
 
     private final NsdManager nsdManager;
-    public int category = 1;
+    public int category = 31;
     private String label;
     private String mac;
     private int port;
     private int configurationIndex;
+    private String registeredServiceName = null;
 
     private final RegistrationListener registrationListener = new RegistrationListener() {
         @Override
-        public void onServiceRegistered(NsdServiceInfo NsdServiceInfo) {
-            // Save the service name. Android may have changed it in order to
-            // resolve a conflict, so update the name you initially requested
-            // with the name Android actually used.
-            String serviceName = NsdServiceInfo.getServiceName();
-            Log.i(TAG, "Service registered with name " + serviceName);
+        public void onServiceRegistered(NsdServiceInfo nsdServiceInfo) {
+            registeredServiceName = nsdServiceInfo.getServiceName();
+            Log.i(TAG, "Service registered with name " + registeredServiceName);
         }
 
         @Override
         public void onRegistrationFailed(NsdServiceInfo serviceInfo, int errorCode) {
-            // Registration failed! Put debugging code here to determine why.
-            Log.i(TAG, "Service registration failed with code " + Integer.toString(errorCode));
+            Log.e(TAG, "Service registration failed with code " + Integer.toString(errorCode));
         }
 
         @Override
         public void onServiceUnregistered(NsdServiceInfo arg0) {
-            // Service has been unregistered. This only happens when you call
-            // NsdManager.unregisterService() and pass in this listener.
             Log.i(TAG, "Service unregistered");
+            registeredServiceName = null;
 
             if (isAdvertising) {
                 try {
                     registerService();
                 } catch (IOException e) {
-                    Log.e(TAG, "IOException registering service");
+                    Log.e(TAG, "IOException registering service", e);
                 }
             }
         }
 
         @Override
         public void onUnregistrationFailed(NsdServiceInfo serviceInfo, int errorCode) {
-            // Unregistration failed. Put debugging code here to determine why.
-            Log.i(TAG, "Service unregistration failed with code " + Integer.toString(errorCode));
+            Log.e(TAG, "Service unregistration failed with code " + Integer.toString(errorCode));
         }
     };
 
@@ -74,7 +61,15 @@ public class Advertiser implements HomekitAdvertiser {
     }
 
     public Advertiser(NsdManager nsdManager) {
-        this(nsdManager, 1);
+        this(nsdManager, 31);
+    }
+
+    public boolean isDiscoverable() {
+        return discoverable;
+    }
+
+    public String getRegisteredServiceName() {
+        return registeredServiceName;
     }
 
     public synchronized void advertise(String label, String mac, int port, int configurationIndex) throws Exception {
@@ -87,7 +82,7 @@ public class Advertiser implements HomekitAdvertiser {
         this.port = port;
         this.configurationIndex = configurationIndex;
 
-        Log.i(TAG, "Advertising accessory " + label);
+        Log.i(TAG, "Advertising accessory " + label + " (" + mac + ") on port " + port);
 
         registerService();
 
@@ -101,7 +96,10 @@ public class Advertiser implements HomekitAdvertiser {
 
     public synchronized void stop() {
         isAdvertising = false;
-        nsdManager.unregisterService(registrationListener);
+        try {
+            nsdManager.unregisterService(registrationListener);
+        } catch (Exception ignored) {
+        }
     }
 
     public synchronized void setDiscoverable(boolean discoverable) throws IOException {
@@ -111,7 +109,22 @@ public class Advertiser implements HomekitAdvertiser {
 
         if (isAdvertising) {
             Log.i(TAG, "Re-creating service due to change in discoverability to " + discoverable);
-            nsdManager.unregisterService(registrationListener);
+            try {
+                nsdManager.unregisterService(registrationListener);
+            } catch (Exception ignored) {
+            }
+        }
+    }
+
+    public synchronized void updateMacAndDiscoverable(String newMac, boolean discoverable) {
+        this.mac = newMac;
+        this.discoverable = discoverable;
+        if (isAdvertising) {
+            Log.i(TAG, "Re-creating service with new MAC " + newMac + " (discoverable=" + discoverable + ")");
+            try {
+                nsdManager.unregisterService(registrationListener);
+            } catch (Exception ignored) {
+            }
         }
     }
 
@@ -122,28 +135,32 @@ public class Advertiser implements HomekitAdvertiser {
 
         if (isAdvertising) {
             Log.i(TAG, "Re-creating service due to change in configuration index to " + revision);
-            nsdManager.unregisterService(registrationListener);
+            try {
+                nsdManager.unregisterService(registrationListener);
+            } catch (Exception ignored) {
+            }
         }
     }
 
     private void registerService() throws IOException {
         Log.i(TAG, "Registering " + SERVICE_TYPE + " on port " + port);
 
-        // Create the NsdServiceInfo object, and populate it.
         NsdServiceInfo serviceInfo = new NsdServiceInfo();
 
-        // The name is subject to change based on conflicts
-        // with other services advertised on the same network.
-        serviceInfo.setServiceName(label);
+        String cleanName = (label == null || label.trim().isEmpty()) ? "Philips TV" : label.replace("/", " ").trim();
+        String upperMac = mac != null ? mac.toUpperCase(java.util.Locale.US) : "";
+        serviceInfo.setServiceName("Philips TV " + upperMac.substring(Math.max(0, upperMac.length() - 5)).replace(":", ""));
         serviceInfo.setServiceType(SERVICE_TYPE);
         serviceInfo.setPort(port);
         serviceInfo.setAttribute("sf", discoverable ? "1" : "0");
-        serviceInfo.setAttribute("id", mac);
-        serviceInfo.setAttribute("md", label);
+        serviceInfo.setAttribute("id", upperMac);
+        serviceInfo.setAttribute("md", cleanName);
+        serviceInfo.setAttribute("pv", "1.1");
         serviceInfo.setAttribute("c#", Integer.toString(configurationIndex));
         serviceInfo.setAttribute("s#", "1");
         serviceInfo.setAttribute("ff", "0");
         serviceInfo.setAttribute("ci", Integer.toString(category));
+        serviceInfo.setAttribute("sh", HomeKitSetupPayload.generateSetupHash(HomeKitSetupPayload.DEFAULT_SETUP_ID, upperMac));
 
         nsdManager.registerService(serviceInfo, NsdManager.PROTOCOL_DNS_SD, registrationListener);
     }

@@ -1,5 +1,7 @@
 package uk.org.fancy.AndroidTvHomeKit.Philips.xtv;
 
+import java.io.BufferedReader;
+import java.io.InputStreamReader;
 import java.io.StringReader;
 import java.io.StringWriter;
 import java.net.URL;
@@ -7,6 +9,8 @@ import java.net.MalformedURLException;
 import java.util.concurrent.CompletableFuture;
 import java.util.List;
 import java.util.LinkedList;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 import javax.json.Json;
 import javax.json.JsonObject;
 import javax.json.JsonObjectBuilder;
@@ -19,8 +23,8 @@ import org.asynchttpclient.Response;
 
 public class XTvHttp {
     private final static String TAG = "HomeKit:XTvHttp";
-    final static String baseUrl = "http://127.0.0.1:1925/6/";
-    final static String secureBaseUrl = "https://127.0.0.1:1926/6/";
+    public final static String baseUrl = "http://127.0.0.1:1925/6/";
+    public final static String secureBaseUrl = "https://127.0.0.1:1926/6/";
     private String username;
     private String password;
     protected final AsyncHttpClient http = new DefaultAsyncHttpClient(
@@ -40,6 +44,127 @@ public class XTvHttp {
         this.password = password;
     }
 
+    public String getUsername() {
+        return username;
+    }
+
+    public String getPassword() {
+        return password;
+    }
+
+    public boolean hasCredentials() {
+        return username != null && !username.isEmpty() && password != null && !password.isEmpty();
+    }
+
+    public static class PairSession {
+        public final String deviceId;
+        public final String deviceName;
+        public final String authKey;
+        public final int timestamp;
+
+        public PairSession(String deviceId, String deviceName, String authKey, int timestamp) {
+            this.deviceId = deviceId;
+            this.deviceName = deviceName;
+            this.authKey = authKey;
+            this.timestamp = timestamp;
+        }
+    }
+
+    public CompletableFuture<PairSession> pairRequest(String deviceId, String deviceName) {
+        JsonObject reqBody = Json.createObjectBuilder()
+            .add("scope", Json.createArrayBuilder().add("read").add("write").add("control"))
+            .add("device", Json.createObjectBuilder()
+                .add("device_name", deviceName)
+                .add("device_os", "Android")
+                .add("app_name", "AndroidTvHomeKit")
+                .add("type", "native")
+                .add("app_id", "uk.org.fancy.AndroidTvHomeKit")
+                .add("id", deviceId)
+            ).build();
+        StringWriter writer = new StringWriter();
+        Json.createWriter(writer).write(reqBody);
+        return http.preparePost(secureBaseUrl + "pair/request")
+            .addHeader("Content-Type", "application/json")
+            .setBody(writer.toString())
+            .execute()
+            .toCompletableFuture()
+            .thenApply(response -> {
+                String body = response.getResponseBody();
+                Log.i(TAG, "POST /pair/request response: " + body);
+                JsonObject obj = Json.createReader(new StringReader(body)).readObject();
+                String errorId = obj.getString("error_id", "");
+                if (!"SUCCESS".equals(errorId)) {
+                    throw new RuntimeException("pair/request failed: " + errorId + " " + obj.getString("error_text", ""));
+                }
+                return new PairSession(
+                    deviceId,
+                    deviceName,
+                    obj.getString("auth_key"),
+                    obj.getInt("timestamp")
+                );
+            });
+    }
+
+    public CompletableFuture<Boolean> pairGrant(PairSession session, String pin) {
+        String signature = XTvUtil.generatePairSignature(session.timestamp, pin.trim());
+        JsonObject grantBody = Json.createObjectBuilder()
+            .add("auth", Json.createObjectBuilder()
+                .add("auth_AppId", "1")
+                .add("pin", pin.trim())
+                .add("auth_timestamp", session.timestamp)
+                .add("auth_signature", signature)
+            )
+            .add("device", Json.createObjectBuilder()
+                .add("device_name", session.deviceName)
+                .add("device_os", "Android")
+                .add("app_name", "AndroidTvHomeKit")
+                .add("type", "native")
+                .add("app_id", "uk.org.fancy.AndroidTvHomeKit")
+                .add("id", session.deviceId)
+            ).build();
+        StringWriter writer = new StringWriter();
+        Json.createWriter(writer).write(grantBody);
+        String authHeader = XTvUtil.generateAuthorizationHeader(session.deviceId, session.authKey, "POST", "/6/pair/grant");
+        return http.preparePost(secureBaseUrl + "pair/grant")
+            .addHeader("Authorization", authHeader)
+            .addHeader("Content-Type", "application/json")
+            .setBody(writer.toString())
+            .execute()
+            .toCompletableFuture()
+            .thenApply(response -> {
+                String body = response.getResponseBody();
+                Log.i(TAG, "POST /pair/grant response: " + body);
+                JsonObject obj = Json.createReader(new StringReader(body)).readObject();
+                String errorId = obj.getString("error_id", "");
+                if ("SUCCESS".equals(errorId)) {
+                    setUser(session.deviceId, session.authKey);
+                    return true;
+                }
+                return false;
+            });
+    }
+
+    public static String readPinFromLogcat() {
+        try {
+            Process proc = Runtime.getRuntime().exec(new String[]{"logcat", "-d", "-t", "80"});
+            BufferedReader reader = new BufferedReader(new InputStreamReader(proc.getInputStream()));
+            Pattern p = Pattern.compile("XTV_SHOW_PINGCODE_TOAST.*?:\\s*(\\d{4})");
+            String line;
+            String foundPin = null;
+            while ((line = reader.readLine()) != null) {
+                Matcher m = p.matcher(line);
+                if (m.find()) {
+                    foundPin = m.group(1);
+                }
+            }
+            reader.close();
+            return foundPin;
+        } catch (Exception e) {
+            Log.w(TAG, "Unable to read PIN from logcat: " + e.toString());
+            return null;
+        }
+    }
+
     public CompletableFuture<Response> get(String url) {
         String pathname;
         try {
@@ -50,7 +175,7 @@ public class XTvHttp {
 
         String authorizationHeader = XTvUtil.generateAuthorizationHeader(username, password, "GET", pathname);
 
-        Log.d(TAG, "Sending GET " + url + " (authorization: " + authorizationHeader + ")");
+        Log.d(TAG, "Sending GET " + url);
 
         CompletableFuture<Response> whenResponse = http
             .prepareGet(url)
@@ -77,7 +202,7 @@ public class XTvHttp {
 
         String authorizationHeader = XTvUtil.generateAuthorizationHeader(username, password, "POST", pathname);
 
-        Log.d(TAG, "Sending POST " + url + " (authorization: " + authorizationHeader + ") " + body);
+        Log.d(TAG, "Sending POST " + url + " " + body);
 
         CompletableFuture<Response> whenResponse = http
             .preparePost(url)
@@ -107,24 +232,26 @@ public class XTvHttp {
             Log.d(TAG, "Got /system response " + body);
             JsonObject system = Json.createReader(new StringReader(body)).readObject();
 
-            menulanguage = system.getString("menulanguage");
-            name = system.getString("name");
-            country = system.getString("country");
-            serialNumber = XTvUtil.decrypt(system.getString("serialnumber_encrypted"));
-            softwareVersion = XTvUtil.decrypt(system.getString("softwareversion_encrypted"));
-            model = XTvUtil.decrypt(system.getString("model_encrypted"));
-            deviceId = XTvUtil.decrypt(system.getString("deviceid_encrypted"));
-            nettvVersion = system.getString("nettvversion");
+            menulanguage = system.getString("menulanguage", "");
+            name = system.getString("name", "Philips TV");
+            country = system.getString("country", "");
+            serialNumber = XTvUtil.decrypt(system.getString("serialnumber_encrypted", null));
+            softwareVersion = XTvUtil.decrypt(system.getString("softwareversion_encrypted", null));
+            model = XTvUtil.decrypt(system.getString("model_encrypted", null));
+            deviceId = XTvUtil.decrypt(system.getString("deviceid_encrypted", null));
+            nettvVersion = system.getString("nettvversion", "");
             JsonObject apiVersionObject = system.getJsonObject("api_version");
-            apiVersion = Integer.toString(apiVersionObject.getInt("Major")) + "." +
-                Integer.toString(apiVersionObject.getInt("Minor")) + "." +
-                Integer.toString(apiVersionObject.getInt("Patch"));
-            osType = system.getString("os_type");
+            apiVersion = apiVersionObject != null ? (
+                Integer.toString(apiVersionObject.getInt("Major", 6)) + "." +
+                Integer.toString(apiVersionObject.getInt("Minor", 0)) + "." +
+                Integer.toString(apiVersionObject.getInt("Patch", 0))
+            ) : "6.0.0";
+            osType = system.getString("os_type", "");
         }
     }
 
     public CompletableFuture<System> getSystem() {
-        return this.get(baseUrl + "system").thenApply(response -> new System(response));
+        return this.get(secureBaseUrl + "system").thenApply(response -> new System(response));
     }
 
     public enum PowerState {
@@ -139,7 +266,7 @@ public class XTvHttp {
             Log.d(TAG, "Got /powerstate response " + body);
             JsonObject powerstate = Json.createReader(new StringReader(body)).readObject();
 
-            switch (powerstate.getString("powerstate")) {
+            switch (powerstate.getString("powerstate", "On")) {
                 case "On": return PowerState.ON;
                 default: case "Standby": return PowerState.STANDBY;
                 case "StandbyKeep": return PowerState.STANDBY_WAKE_LOCK;
@@ -175,17 +302,17 @@ public class XTvHttp {
         }
 
         public Application(JsonObject application) {
-            label = application.getString("label");
+            label = application.getString("label", "");
             JsonObject intentObject = application.getJsonObject("intent");
             JsonObject componentObject = intentObject.getJsonObject("component");
             intent = new ApplicationIntent(
-                componentObject.getString("packageName"),
-                componentObject.getString("className"),
-                intentObject.getString("action")
+                componentObject.getString("packageName", ""),
+                componentObject.getString("className", ""),
+                intentObject.getString("action", "")
             );
-            order = application.getInt("order");
-            id = application.getString("id");
-            type = application.getString("type") == "game" ? ApplicationType.GAME : ApplicationType.APP;
+            order = application.getInt("order", 0);
+            id = application.getString("id", "");
+            type = "game".equals(application.getString("type", "")) ? ApplicationType.GAME : ApplicationType.APP;
         }
     }
 
@@ -209,8 +336,9 @@ public class XTvHttp {
         }
 
         public Activity(JsonObject activity) {
-            this.packageName = activity.getString("packageName");
-            this.className = activity.getString("className") == "NA" ? null : activity.getString("className");
+            this.packageName = activity.getString("packageName", "");
+            String cls = activity.getString("className", "NA");
+            this.className = "NA".equals(cls) ? null : cls;
         }
     }
 
@@ -253,7 +381,7 @@ public class XTvHttp {
             .add("intent", Json.createObjectBuilder()
                 .add("component", Json.createObjectBuilder()
                     .add("packageName", intent.activity.packageName)
-                    .add("className", intent.activity.className))
+                    .add("className", intent.activity.className != null ? intent.activity.className : ""))
                 .add("action", intent.action)
             ).build()
         ).thenApply(response -> {
@@ -270,16 +398,16 @@ public class XTvHttp {
 
         public AudioSettings(int min, int max, boolean mute, int volume) {
             this.MINIMUM_VOLUME = min;
-            this.MAXIMUM_VOLUME = min;
+            this.MAXIMUM_VOLUME = max;
             this.mute = mute;
             this.volume = volume;
         }
 
         public AudioSettings(JsonObject audio) {
-            MINIMUM_VOLUME = audio.getInt("min");
-            MAXIMUM_VOLUME = audio.getInt("max");
-            mute = audio.getBoolean("muted");
-            volume = audio.getInt("current");
+            MINIMUM_VOLUME = audio.getInt("min", 0);
+            MAXIMUM_VOLUME = audio.getInt("max", 60);
+            mute = audio.getBoolean("muted", false);
+            volume = audio.getInt("current", 0);
         }
     }
 

@@ -1,6 +1,8 @@
 package uk.org.fancy.AndroidTvHomeKit.Philips;
 
-import java.lang.reflect.Method;
+import java.util.concurrent.TimeUnit;
+import android.content.Context;
+import android.os.PowerManager;
 import android.util.Log;
 import uk.org.fancy.AndroidTvHomeKit.PowerStateInterface;
 import uk.org.fancy.AndroidTvHomeKit.PollThread;
@@ -19,35 +21,15 @@ public class PowerState implements PowerStateInterface, PollThread.PollInterface
 
     public boolean getPowerState() {
         try {
-            Class<?> contextClass = Class.forName("org.droidtv.tv.context.TvContext");
-            Class<?> powerManagerInterface = Class.forName("org.droidtv.tv.tvpower.ITvPowerManager");
-
-            Method getInterface = contextClass.getMethod("getInterface", Class.class);
-            Object powerManagerInstance = getInterface.invoke(null, powerManagerInterface);
-            Class<?> powerManagerClass = powerManagerInstance.getClass();
-
-            Class<?> powerStatesEnum = Class.forName("org.droidtv.tv.tvpower.ITvPowerManager$PowerStates");
-
-            Enum[] powerStates = (Enum[]) powerStatesEnum.getEnumConstants();
-            Enum POWER_STATE_FULL_SYSTEM_START = null;
-
-            for (Enum powerState: powerStates) {
-                if (powerState.name() == "POWER_STATE_FULL_SYSTEM_START") {
-                    POWER_STATE_FULL_SYSTEM_START = powerState;
-                    break;
-                }
-            }
-
-            if (POWER_STATE_FULL_SYSTEM_START == null) {
-                throw new Exception("Didn\'t find PowerStates.POWER_STATE_FULL_SYSTEM_START");
-            }
-
-            Method getPowerState = powerManagerClass.getMethod("GetPowerState");
-            Enum powerState = (Enum) getPowerState.invoke(powerManagerInstance);
-
-            return POWER_STATE_FULL_SYSTEM_START.equals(powerState);
+            XTvHttp.PowerState state = television.xtvhttp.getPowerState().get(3, TimeUnit.SECONDS);
+            return state == XTvHttp.PowerState.ON;
         } catch (Exception e) {
-            Log.i(TAG, "Error getting power state " + e.toString());
+            try {
+                PowerManager pm = (PowerManager) television.service.getSystemService(Context.POWER_SERVICE);
+                if (pm != null) return pm.isInteractive();
+            } catch (Exception ignored) {
+            }
+            Log.i(TAG, "Error getting power state: " + e.toString());
             return false;
         }
     }
@@ -71,11 +53,10 @@ public class PowerState implements PowerStateInterface, PollThread.PollInterface
 
     public void poll() {
         boolean powerState = getPowerState();
-        Log.i(TAG, "Polling power state " + powerState + "; was " + lastPowerState);
 
         if (powerState != lastPowerState) {
-            callback.changed();
-
+            Log.i(TAG, "Power state changed to " + powerState);
+            if (callback != null) callback.changed();
             lastPowerState = powerState;
         }
     }

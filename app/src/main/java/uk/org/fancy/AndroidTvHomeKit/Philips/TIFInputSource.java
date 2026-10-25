@@ -28,7 +28,12 @@ public class TIFInputSource extends InputSource implements TIFInputSourceInterfa
     }
 
     public String getName() {
-        return tvInputInfo.loadLabel(inputSourceManager.television.service).toString();
+        CharSequence customLabel = tvInputInfo.loadCustomLabel(inputSourceManager.television.service);
+        if (customLabel != null && customLabel.length() > 0) {
+            return customLabel.toString();
+        }
+        CharSequence label = tvInputInfo.loadLabel(inputSourceManager.television.service);
+        return label != null ? label.toString() : tvInputInfo.getId();
     }
 
     public InputSourceTypes getInputSourceType() {
@@ -51,17 +56,10 @@ public class TIFInputSource extends InputSource implements TIFInputSourceInterfa
                 return InputSourceTypes.S_VIDEO;
             case TvInputInfo.TYPE_TUNER:
                 return InputSourceTypes.TUNER;
-
-            // OTHER,
-            // HOME_SCREEN,
-            // AIRPLAY,
-            // USB,
-            // APPLICATION,
         }
     }
 
     public boolean isConfigured() {
-        // TODO: return false for tuners with no configured channels (and inputs with nothing connected?)
         return true;
     }
 
@@ -70,44 +68,28 @@ public class TIFInputSource extends InputSource implements TIFInputSourceInterfa
     }
 
     public String getConfiguredName() {
-        // CharSequence customLabel = tvInputInfo.loadCustomLabel(inputSourceManager.television.service);
-        //
-        // if (customLabel == null) return null;
-        //
-        // return customLabel.toString();
-
-        return null;
+        return getName();
     }
 
     public void setConfiguredName(String name) {
         Log.i(TAG, "Set configured name " + getName() + " to " + name);
     }
 
-    /**
-     * Set the current source to this.
-     */
     public void activate() {
         Log.i(TAG, "Activate TIF " + getName());
 
         Intent intent = new Intent();
         intent.setAction("android.intent.action.VIEW");
+        intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
 
         if (tvInputInfo.getType() == TvInputInfo.TYPE_TUNER) {
-            Log.i(TAG, "Switching to tuner source " + tvInputInfo.getId());
-
             Uri sourceUri3 = TvContract.buildChannelsUriForInput(tvInputInfo.getId());
-            Log.i(TAG, "TYPE_TUNER sourceUri:" + sourceUri3);
             intent.setData(sourceUri3);
         } else {
-            Log.i(TAG, "Switching to non-tuner source " + tvInputInfo.getId());
-
             Uri sourceUri4 = TvContract.buildChannelUriForPassthroughInput(tvInputInfo.getId());
-            Log.i(TAG, "PASSTHROUGH sourceUri:" + sourceUri4);
             intent.setData(sourceUri4);
         }
 
         inputSourceManager.television.service.startActivity(intent);
-
-        // TODO: tell the source/channel list (org.droidtv.channels) the source has changed
     }
 }

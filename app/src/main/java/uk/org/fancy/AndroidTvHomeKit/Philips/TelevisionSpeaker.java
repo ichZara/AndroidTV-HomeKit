@@ -1,6 +1,8 @@
 package uk.org.fancy.AndroidTvHomeKit.Philips;
 
 import java.util.concurrent.CompletableFuture;
+import android.content.Context;
+import android.media.AudioManager;
 import android.util.Log;
 import uk.org.fancy.AndroidTvHomeKit.TelevisionSpeakerInterface;
 import uk.org.fancy.AndroidTvHomeKit.PollThread;
@@ -19,15 +21,12 @@ public class TelevisionSpeaker implements TelevisionSpeakerInterface,
     private boolean lastMuteState = false;
     private PollThread.PollInterface pollMute = new PollThread.PollInterface() {
         public void poll() throws Exception {
-            Log.i(TAG, "Polling mute state; was " + lastMuteState);
             boolean muteState = lastMuteState;
             boolean mute = getMute().get();
 
             if (mute != muteState) {
                 Log.i(TAG, "Mute state changed; now " + mute);
-
-                muteCallback.changed();
-
+                if (muteCallback != null) muteCallback.changed();
                 lastMuteState = mute;
             }
         }
@@ -37,15 +36,12 @@ public class TelevisionSpeaker implements TelevisionSpeakerInterface,
     private int lastVolume = 0;
     private PollThread.PollInterface pollVolume = new PollThread.PollInterface() {
         public void poll() throws Exception {
-            Log.i(TAG, "Polling volume; was " + lastVolume);
             int oldVolume = lastVolume;
             int volume = getVolume().get();
 
             if (volume != oldVolume) {
                 Log.i(TAG, "Volume changed; now " + volume);
-
-                muteCallback.changed();
-
+                if (volumeCallback != null) volumeCallback.changed();
                 lastVolume = volume;
             }
         }
@@ -56,9 +52,15 @@ public class TelevisionSpeaker implements TelevisionSpeakerInterface,
     }
 
     public CompletableFuture<Boolean> getMute() {
-        return television.xtvhttp.getMute().thenApply(mute -> {
+        return television.xtvhttp.getMute().exceptionally(err -> {
+            try {
+                AudioManager am = (AudioManager) television.service.getSystemService(Context.AUDIO_SERVICE);
+                if (am != null) return am.isStreamMute(AudioManager.STREAM_MUSIC);
+            } catch (Exception ignored) {
+            }
+            return lastMuteState;
+        }).thenApply(mute -> {
             lastMuteState = mute;
-
             return mute;
         });
     }
@@ -90,28 +92,31 @@ public class TelevisionSpeaker implements TelevisionSpeakerInterface,
         television.keypress(XTvHttp.RemoteKey.VOLUME_DOWN);
     }
 
-    /**
-     * Returns the volume as an integer between 0 and 100.
-     */
     public CompletableFuture<Integer> getVolume() {
         return television.xtvhttp.getAudioSettings().thenApply(audio -> {
             MINIMUM_VOLUME = audio.MINIMUM_VOLUME;
-            MAXIMUM_VOLUME = audio.MAXIMUM_VOLUME;
+            MAXIMUM_VOLUME = audio.MAXIMUM_VOLUME > 0 ? audio.MAXIMUM_VOLUME : 60;
 
-            int v = (int) (((((float) audio.volume - audio.MINIMUM_VOLUME) / audio.MAXIMUM_VOLUME) * 100) + audio.MINIMUM_VOLUME);
-
-            Log.i(TAG, "Current volume: " + Integer.toString(audio.volume) + "; " + Integer.toString(v) +
-                "; min " + Integer.toString(audio.MINIMUM_VOLUME) + "; max " + Integer.toString(audio.MAXIMUM_VOLUME));
+            int v = (int) (((((float) audio.volume - MINIMUM_VOLUME) / MAXIMUM_VOLUME) * 100) + MINIMUM_VOLUME);
+            if (v < 0) v = 0;
+            if (v > 100) v = 100;
 
             lastVolume = v;
-
             return v;
+        }).exceptionally(err -> {
+            try {
+                AudioManager am = (AudioManager) television.service.getSystemService(Context.AUDIO_SERVICE);
+                if (am != null) {
+                    int max = am.getStreamMaxVolume(AudioManager.STREAM_MUSIC);
+                    int cur = am.getStreamVolume(AudioManager.STREAM_MUSIC);
+                    if (max > 0) return (cur * 100) / max;
+                }
+            } catch (Exception ignored) {
+            }
+            return lastVolume;
         });
     }
 
-    /**
-     * Sets the volume to an integer between 0 and 100.
-     */
     public void setVolume(int volume) {
         int v = (int) (((((float) volume - MINIMUM_VOLUME) / 100) * MAXIMUM_VOLUME) + MINIMUM_VOLUME);
         Log.i(TAG, "Set volume: " + Integer.toString(volume) + "; " + Integer.toString(v));

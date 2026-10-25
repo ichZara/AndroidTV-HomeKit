@@ -4,7 +4,6 @@ import java.util.Collections;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
-import android.util.Log;
 
 import uk.org.fancy.AndroidTvHomeKit.characteristics.Mute;
 import uk.org.fancy.AndroidTvHomeKit.characteristics.VolumeControlType;
@@ -13,7 +12,6 @@ import uk.org.fancy.AndroidTvHomeKit.characteristics.VolumeSelector;
 import io.github.hapjava.Service;
 import io.github.hapjava.characteristics.Characteristic;
 import io.github.hapjava.HomekitCharacteristicChangeCallback;
-import io.github.hapjava.impl.characteristics.common.Name;
 import io.github.hapjava.impl.characteristics.common.ActiveCharacteristic;
 
 public class TelevisionSpeakerService implements Service {
@@ -34,7 +32,14 @@ public class TelevisionSpeakerService implements Service {
     public List<Characteristic> getCharacteristics() {
         List<Characteristic> characteristics = new LinkedList<>();
 
-        // Mute
+        Characteristic active = new ActiveCharacteristic(
+            () -> CompletableFuture.completedFuture(ActiveCharacteristic.ACTIVE),
+            v -> {},
+            c -> {},
+            () -> {}
+        );
+        characteristics.add(active);
+
         Characteristic mute = new Mute(
             () -> speaker.getMute(),
             v -> speaker.setMute(v),
@@ -49,22 +54,25 @@ public class TelevisionSpeakerService implements Service {
         );
         characteristics.add(mute);
 
-        // Volume Control Type
         int type;
         switch (speaker.getVolumeControlType()) {
             default:
             case NONE:
                 type = VolumeControlType.NONE;
+                break;
             case RELATIVE:
                 type = VolumeControlType.RELATIVE;
+                break;
             case RELATIVE_WITH_CURRENT:
                 type = VolumeControlType.RELATIVE_WITH_CURRENT;
+                break;
             case ABSOLUTE:
                 type = VolumeControlType.ABSOLUTE;
+                break;
         }
         Characteristic volumeControlType = new VolumeControlType(type);
+        characteristics.add(volumeControlType);
 
-        // Volume
         if (speaker instanceof TelevisionSpeakerInterface.AbsoluteVolumeInterface) {
             Characteristic volume = new Volume(
                 () -> ((TelevisionSpeakerInterface.AbsoluteVolumeInterface) speaker).getVolume(),
@@ -81,15 +89,16 @@ public class TelevisionSpeakerService implements Service {
             characteristics.add(volume);
         }
 
-        // Volume Selector
         if (speaker instanceof TelevisionSpeakerInterface.RelativeVolumeInterface) {
             Characteristic volumeSelector = new VolumeSelector(v -> {
                 switch (v) {
                     default:
                     case VolumeSelector.INCREMENT:
                         ((TelevisionSpeakerInterface.RelativeVolumeInterface) speaker).incrementVolume();
+                        break;
                     case VolumeSelector.DECREMENT:
                         ((TelevisionSpeakerInterface.RelativeVolumeInterface) speaker).decrementVolume();
+                        break;
                 }
             });
             characteristics.add(volumeSelector);

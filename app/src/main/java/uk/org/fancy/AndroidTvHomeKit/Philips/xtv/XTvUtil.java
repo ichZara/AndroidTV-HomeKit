@@ -5,6 +5,7 @@ import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.security.SecureRandom;
 import javax.crypto.Cipher;
+import javax.crypto.Mac;
 import javax.crypto.spec.IvParameterSpec;
 import javax.crypto.spec.SecretKeySpec;
 import android.util.Base64;
@@ -16,7 +17,26 @@ public class XTvUtil {
     final static String digestAuthNonceKey = "mySecretServerKey";
     final static String encryptionKey = "ZmVay1EQVFOaZhwQ4Kv81ypLAZNczV9sG4KkseXWn1NEk6cXmPKO/MCa9sryslvLCFMnNe4Z4CPXzToowvhHvA==";
 
+    public static String generatePairSignature(int timestamp, String pin) {
+        try {
+            byte[] secretKey = Base64.decode(encryptionKey, Base64.DEFAULT);
+            Mac mac = Mac.getInstance("HmacSHA1");
+            mac.init(new SecretKeySpec(secretKey, "HmacSHA1"));
+            byte[] rawHmac = mac.doFinal((timestamp + pin).getBytes(StandardCharsets.UTF_8));
+            StringBuilder hexString = new StringBuilder();
+            for (byte b : rawHmac) {
+                String hex = Integer.toHexString(0xff & b);
+                if (hex.length() == 1) hexString.append('0');
+                hexString.append(hex);
+            }
+            return Base64.encodeToString(hexString.toString().getBytes(StandardCharsets.UTF_8), Base64.NO_WRAP);
+        } catch (Exception e) {
+            throw new RuntimeException("Error generating pair signature", e);
+        }
+    }
+
     public static String decrypt(String data) {
+        if (data == null) return null;
         if (data.endsWith("\n")) data = data.substring(0, data.length() - 1);
 
         try {

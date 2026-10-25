@@ -1,9 +1,5 @@
 package uk.org.fancy.AndroidTvHomeKit.Philips;
 
-import android.content.Intent;
-import android.media.tv.TvInputInfo;
-import android.media.tv.TvContract;
-import android.net.Uri;
 import android.util.Log;
 import uk.org.fancy.AndroidTvHomeKit.ApplicationInputSourceInterface;
 import uk.org.fancy.AndroidTvHomeKit.Philips.xtv.XTvHttp;
@@ -33,9 +29,9 @@ public class XTvApplicationInputSource extends InputSource implements Applicatio
     }
 
     public InputSourceTypes getInputSourceType() {
-        if (application.intent.activity.packageName == "org.droidtv.channels") {
+        if ("org.droidtv.channels".equals(application.intent.activity.packageName)) {
             return InputSourceTypes.OTHER;
-        } else if (application.intent.activity.packageName == "org.droidtv.contentexplorer") {
+        } else if ("org.droidtv.contentexplorer".equals(application.intent.activity.packageName)) {
             return InputSourceTypes.USB;
         } else {
             return InputSourceTypes.APPLICATION;
@@ -43,7 +39,6 @@ public class XTvApplicationInputSource extends InputSource implements Applicatio
     }
 
     public boolean isConfigured() {
-        // TODO: return false for tuners with no configured channels (and inputs with nothing connected?)
         return true;
     }
 
@@ -52,16 +47,13 @@ public class XTvApplicationInputSource extends InputSource implements Applicatio
     }
 
     public String getConfiguredName() {
-        return "";
+        return getName();
     }
 
     public void setConfiguredName(String name) {
         Log.i(TAG, "Set configured name " + getName() + " to " + name);
     }
 
-    /**
-     * Set the current source to this.
-     */
     public void activate() {
         Log.i(TAG, "Activate XTvApplication " + getName());
 

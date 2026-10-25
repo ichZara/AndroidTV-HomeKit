@@ -3,8 +3,6 @@ package uk.org.fancy.AndroidTvHomeKit.Philips.Ambilight;
 import uk.org.fancy.AndroidTvHomeKit.PollThread;
 import uk.org.fancy.AndroidTvHomeKit.Philips.Television;
 import uk.org.fancy.AndroidTvHomeKit.Philips.xtv.XTvAmbilightHttp;
-import java.lang.reflect.Field;
-import java.lang.reflect.Method;
 import java.util.concurrent.CompletableFuture;
 import java.util.Collections;
 import java.util.LinkedList;
@@ -25,13 +23,13 @@ public class Service implements io.github.hapjava.Service, PollThread.PollInterf
     private boolean lastTvPowerState = false;
     private boolean hasEnabledAmbilightAfterTvOff = false;
     private XTvAmbilightHttp.Configuration lastEnabledConfiguration =
-        new XTvAmbilightHttp.Configuration(XTvAmbilightHttp.Style.FOLLOW_VIDEO);
+        new XTvAmbilightHttp.Configuration(XTvAmbilightHttp.VideoAlgorithm.STANDARD);
     private CompletableFuture<XTvAmbilightHttp.Configuration> lastConfigurationFuture = null;
     private long lastConfigurationTimestamp = 0;
-    private XTvAmbilightHttp.Colour lastColour = new XTvAmbilightHttp.Colour(0, 0, 0);
+    private XTvAmbilightHttp.Colour lastColour = new XTvAmbilightHttp.Colour(0, 0, 120);
     private XTvAmbilightHttp.Colour lastColourDelta = new XTvAmbilightHttp.Colour(0, 0, 0);
     private int lastColourSpeed = 0;
-    private int lastColourSyncState = ColourSync.OFF;
+    private int lastColourSyncState = ColourSync.VIDEO_STANDARD;
     private HomekitCharacteristicChangeCallback powerStateCallback;
     private boolean lastPowerState = false;
     private HomekitCharacteristicChangeCallback colourSyncCallback;
@@ -56,11 +54,9 @@ public class Service implements io.github.hapjava.Service, PollThread.PollInterf
     public List<Characteristic> getCharacteristics() {
         List<Characteristic> characteristics = new LinkedList<>();
 
-        // Name
         Characteristic name = new Name("Ambilight");
         characteristics.add(name);
 
-        // Power
         Characteristic power = new PowerStateCharacteristic(
             () -> getPowerState(), v -> setPowerState(v),
             c -> {powerStateCallback = c; onSubscribe();},
@@ -68,7 +64,6 @@ public class Service implements io.github.hapjava.Service, PollThread.PollInterf
         );
         characteristics.add(power);
 
-        // Colour Sync
         Characteristic colourSync = new ColourSync(
             () -> getColourSync(), v -> setColourSync(v),
             c -> {colourSyncCallback = c; onSubscribe();},
@@ -76,7 +71,6 @@ public class Service implements io.github.hapjava.Service, PollThread.PollInterf
         );
         characteristics.add(colourSync);
 
-        // Brightness
         Characteristic brightness = new BrightnessCharacteristic(
             () -> getBrightness(), v -> setBrightness(v),
             c -> {brightnessCallback = c; onSubscribe();},
@@ -84,7 +78,6 @@ public class Service implements io.github.hapjava.Service, PollThread.PollInterf
         );
         characteristics.add(brightness);
 
-        // Hue
         Characteristic hue = new HueCharacteristic(
             () -> getHue(), v -> setHue(v),
             c -> {hueCallback = c; onSubscribe();},
@@ -92,7 +85,6 @@ public class Service implements io.github.hapjava.Service, PollThread.PollInterf
         );
         characteristics.add(hue);
 
-        // Saturation
         Characteristic saturation = new SaturationCharacteristic(
             () -> getSaturation(), v -> setSaturation(v),
             c -> {saturationCallback = c; onSubscribe();},
@@ -100,7 +92,6 @@ public class Service implements io.github.hapjava.Service, PollThread.PollInterf
         );
         characteristics.add(saturation);
 
-        // Colour Variation
         Characteristic variation = new Variation(
             () -> getVariation(), v -> setVariation(v),
             c -> {variationCallback = c; onSubscribe();},
@@ -108,7 +99,6 @@ public class Service implements io.github.hapjava.Service, PollThread.PollInterf
         );
         characteristics.add(variation);
 
-        // Colour Variation Speed
         Characteristic variationSpeed = new VariationSpeed(
             () -> getVariationSpeed(), v -> setVariationSpeed(v),
             c -> {variationSpeedCallback = c; onSubscribe();},
@@ -140,12 +130,13 @@ public class Service implements io.github.hapjava.Service, PollThread.PollInterf
             }
 
             if (configuration.style == XTvAmbilightHttp.Style.FOLLOW_COLOUR && configuration.isExpert) {
-                lastColour = configuration.manualColour;
-                lastColourDelta = configuration.manualColourDelta;
-                // lastColourSpeed = configuration.speed;
+                if (configuration.manualColour != null) lastColour = configuration.manualColour;
+                if (configuration.manualColourDelta != null) lastColourDelta = configuration.manualColourDelta;
             }
 
             return configuration;
+        }).exceptionally(err -> {
+            return new XTvAmbilightHttp.Configuration(XTvAmbilightHttp.Style.OFF);
         });
     }
 
@@ -163,7 +154,6 @@ public class Service implements io.github.hapjava.Service, PollThread.PollInterf
         if (configuration.style == XTvAmbilightHttp.Style.FOLLOW_COLOUR && configuration.isExpert) {
             lastColour = configuration.manualColour;
             lastColourDelta = configuration.manualColourDelta;
-            // lastColourSpeed = configuration.speed;
         }
 
         return xtvambilight.setConfiguration(configuration);
@@ -186,15 +176,11 @@ public class Service implements io.github.hapjava.Service, PollThread.PollInterf
 
     public void setPowerState(boolean on) {
         if (on) {
-            // Turn Ambilight on
             setConfiguration(lastEnabledConfiguration);
         } else {
             if (getTvPowerState()) {
-                // Turn Ambilight off, TV is on
                 xtvambilight.setConfiguration(XTvAmbilightHttp.Style.OFF);
             } else {
-                // Turn Ambilight off, TV is off
-                // Reset to internal mode, which will turn Ambilight off but won't disable it
                 xtvambilight.setMode(XTvAmbilightHttp.Mode.INTERNAL);
             }
 
@@ -204,7 +190,7 @@ public class Service implements io.github.hapjava.Service, PollThread.PollInterf
 
     public CompletableFuture<Integer> getColourSync() {
         return getConfiguration().thenApply(configuration -> {
-            if (configuration.style == XTvAmbilightHttp.Style.FOLLOW_VIDEO) {
+            if (configuration.style == XTvAmbilightHttp.Style.FOLLOW_VIDEO && configuration.videoAlgorithm != null) {
                 switch (configuration.videoAlgorithm) {
                     case STANDARD: return ColourSync.VIDEO_STANDARD;
                     case NATURAL: return ColourSync.VIDEO_NATURAL;
@@ -216,7 +202,7 @@ public class Service implements io.github.hapjava.Service, PollThread.PollInterf
                 }
             }
 
-            if (configuration.style == XTvAmbilightHttp.Style.FOLLOW_AUDIO) {
+            if (configuration.style == XTvAmbilightHttp.Style.FOLLOW_AUDIO && configuration.audioAlgorithm != null) {
                 switch (configuration.audioAlgorithm) {
                     case ENERGY_ADAPTIVE_BRIGHTNESS: return ColourSync.AUDIO_ENERGY_ADAPTIVE_BRIGHTNESS;
                     case ENERGY_ADAPTIVE_COLORS: return ColourSync.AUDIO_ENERGY_ADAPTIVE_COLORS;
@@ -228,7 +214,7 @@ public class Service implements io.github.hapjava.Service, PollThread.PollInterf
                 }
             }
 
-            if (configuration.style == XTvAmbilightHttp.Style.FOLLOW_COLOUR && !configuration.isExpert) {
+            if (configuration.style == XTvAmbilightHttp.Style.FOLLOW_COLOUR && !configuration.isExpert && configuration.colour != null) {
                 switch (configuration.colour) {
                     case HOT_LAVA: return ColourSync.COLOUR_HOT_LAVA;
                     case DEEP_WATER: return ColourSync.COLOUR_DEEP_WATER;
@@ -253,7 +239,6 @@ public class Service implements io.github.hapjava.Service, PollThread.PollInterf
 
         switch (syncstate) {
             default:
-                // Invalid value
                 return;
             case ColourSync.OFF:
                 Log.i(TAG, "Disabling colour sync");
@@ -309,16 +294,11 @@ public class Service implements io.github.hapjava.Service, PollThread.PollInterf
         return range(value - frommin, frommax, tomax) + tomin;
     }
     public int range(int value, int frommax, int tomax) {
-        // 50, 100, 1000 -> 500
-        // 50 * (1000 / 100), 50 * 10
-        // return value * (tomax / frommax);
-        // (50 * 1000) / 100, 50000 / 100
         return (value * tomax) / frommax;
     }
 
     public CompletableFuture<Integer> getBrightness() {
         return getConfiguration().thenApply(configuration -> {
-            // Max is still 255, but 120 seems to be the maximum brightness
             int brightness = range(lastColour.brightness, 120, 100);
             return brightness > 100 ? 100 : brightness;
         });
@@ -413,7 +393,6 @@ public class Service implements io.github.hapjava.Service, PollThread.PollInterf
 
         if (powerStateCallback != null) {
             boolean powerState = getPowerState().get();
-            Log.i(TAG, "Polling power state " + powerState + "; was " + lastPowerState);
 
             if (powerState != lastPowerState) {
                 powerStateCallback.changed();
@@ -423,16 +402,12 @@ public class Service implements io.github.hapjava.Service, PollThread.PollInterf
 
         if (colourSyncCallback != null) {
             int colourSync = getColourSync().get();
-            Log.i(TAG, "Polling colour sync state " + Integer.toString(colourSync) + "; was " +
-                Integer.toString(lastColourSync));
 
             if (colourSync != lastColourSync) colourSyncCallback.changed();
         }
 
         if (brightnessCallback != null) {
             int brightness = getBrightness().get();
-            Log.i(TAG, "Polling brightness " + Integer.toString(brightness) + "; was " +
-                Integer.toString(lastBrightness));
 
             if (brightness != lastBrightness) {
                 brightnessCallback.changed();
@@ -442,7 +417,6 @@ public class Service implements io.github.hapjava.Service, PollThread.PollInterf
 
         if (hueCallback != null) {
             double hue = getHue().get();
-            Log.i(TAG, "Polling hue " + Double.toString(hue) + "; was " + Double.toString(lastHue));
 
             if (hue != lastHue) {
                 hueCallback.changed();
@@ -452,8 +426,6 @@ public class Service implements io.github.hapjava.Service, PollThread.PollInterf
 
         if (saturationCallback != null) {
             double saturation = getSaturation().get();
-            Log.i(TAG, "Polling saturation " + Double.toString(saturation) + "; was " +
-                Double.toString(lastSaturation));
 
             if (saturation != lastSaturation) {
                 saturationCallback.changed();
@@ -463,15 +435,12 @@ public class Service implements io.github.hapjava.Service, PollThread.PollInterf
 
         if (variationCallback != null) {
             int variation = getVariation().get();
-            Log.i(TAG, "Polling variation " + Integer.toString(variation) + "; was " + Integer.toString(lastVariation));
 
             if (variation != lastVariation) variationCallback.changed();
         }
 
         if (variationSpeedCallback != null) {
             int variationSpeed = getVariationSpeed().get();
-            Log.i(TAG, "Polling variation speed " + Integer.toString(variationSpeed) + "; was " +
-                Integer.toString(lastVariationSpeed));
 
             if (variationSpeed != lastVariationSpeed) variationSpeedCallback.changed();
         }

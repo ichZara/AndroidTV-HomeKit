@@ -1,9 +1,8 @@
 package uk.org.fancy.AndroidTvHomeKit.Philips;
 
-// import java.lang.reflect.Method;
 import java.util.Collection;
-// import java.util.Collections;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.TimeUnit;
 import java.util.LinkedList;
 import java.util.List;
 import android.media.tv.TvInputManager;
@@ -28,66 +27,59 @@ public class InputSourceManager implements InputSourceManagerInterface, PollThre
     public InputSourceManager(Television _television) {
         television = _television;
 
-		// Television
-		// InputSource inputSource = new InputSource(this);
-		// inputSources.add(inputSource);
-
         homeScreenInputSource = new HomeScreenInputSource(this);
         inputSources.add(homeScreenInputSource);
 
         TvInputManager tvInputManager = (TvInputManager) television.service.getSystemService("tv_input");
-        List<TvInputInfo> tifInputs = tvInputManager.getTvInputList();
+        if (tvInputManager != null) {
+            List<TvInputInfo> tifInputs = tvInputManager.getTvInputList();
 
-        for (TvInputInfo tvInputInfo: tifInputs) {
-            CharSequence customLabel = tvInputInfo.loadCustomLabel(television.service);
+            for (TvInputInfo tvInputInfo: tifInputs) {
+                String id = tvInputInfo.getId();
+                if (tvInputInfo.isHidden(television.service)) {
+                    continue;
+                }
+                if (tvInputInfo.getType() == TvInputInfo.TYPE_HDMI && tvInputInfo.getParentId() != null) {
+                    continue;
+                }
+                if (tvInputInfo.getType() != TvInputInfo.TYPE_HDMI &&
+                    !id.contains("TunerInputService/HW0")) {
+                    continue;
+                }
 
-            Log.i(TAG, "Input ID " + tvInputInfo.getId() + "; parent ID " + tvInputInfo.getParentId());
-            Log.i(TAG, "Name/Label " + tvInputInfo.loadLabel(television.service).toString() +
-                "; Custom Label " + (customLabel != null ? customLabel.toString() : "null"));
-            Log.i(TAG, "Type " + tvInputInfo.getType() + "; tuner count " + tvInputInfo.getTunerCount());
-            Log.i(TAG, "Hidden? " + tvInputInfo.isHidden(television.service) + " Passthrough? " + tvInputInfo.isPassthroughInput());
+                Log.i(TAG, "Registering TIF input source " + id);
 
-            if (tvInputInfo.getType() == TvInputInfo.TYPE_HDMI && tvInputInfo.getParentId() != null) {
-                Log.i(TAG, "Not registering child HDMI input " + tvInputInfo.getId());
-                continue;
+                TIFInputSource tifInputSource = new TIFInputSource(this, tvInputInfo);
+                tifInputSources.add(tifInputSource);
+                inputSources.add(tifInputSource);
             }
-
-            Log.i(TAG, "Registering TIF input source " + tvInputInfo.getId());
-
-            TIFInputSource tifInputSource = new TIFInputSource(this, tvInputInfo);
-            tifInputSources.add(tifInputSource);
-            inputSources.add(tifInputSource);
         }
 
-        // try {
-        //     List<XTvHttp.Application> xtvApplicationInputs = television.xtvhttp.getApplications().get();
-        //
-        //     for (XTvHttp.Application application: xtvApplicationInputs) {
-        //         Log.i(TAG, "Application ID " + application.id + "; Name/Label " + application.label);
-        //         Log.i(TAG, "Type " + (application.type == XTvHttp.ApplicationType.GAME ? "GAME" : "APP"));
-        //         Log.i(TAG, "Activity " + application.intent.activity.packageName + "/" + application.intent.activity.className +
-        //             "; intent " + application.intent.action);
-        //
-        //         if (application.intent.activity.packageName.contentEquals("org.droidtv.playtv")) continue;
-        //         if (application.intent.activity.packageName.contentEquals("org.droidtv.eum")) {
-        //             if (!application.intent.activity.className.contentEquals("org.droidtv.eum.onehelp.menu.HowToLauncherActivity")) continue;
-        //         }
-        //         if (application.intent.activity.packageName.contentEquals("org.droidtv.settings")) {
-        //             // if (application.intent.activity.className != "org.droidtv.settings.setupmenu.SetupMenuActivity") continue;
-        //             continue;
-        //         }
-        //         if (application.intent.activity.packageName.contentEquals("com.android.tv.settings")) continue;
-        //
-        //         Log.i(TAG, "Registering XTv Application input source " + application.id);
-        //
-        //         XTvApplicationInputSource xtvApplicationInputSource = new XTvApplicationInputSource(this, application);
-        //         xtvApplicationInputSources.add(xtvApplicationInputSource);
-        //         inputSources.add(xtvApplicationInputSource);
-        //     }
-        // } catch (Exception err) {
-        //     Log.e(TAG, "Error getting applications: " + err.toString());
-        //     throw new RuntimeException("Error getting applications", err);
-        // }
+        try {
+            List<XTvHttp.Application> xtvApplicationInputs = television.xtvhttp.getApplications().get(5, TimeUnit.SECONDS);
+
+            for (XTvHttp.Application application: xtvApplicationInputs) {
+                String pkg = application.intent.activity.packageName;
+                if (pkg == null) continue;
+                if (pkg.startsWith("org.droidtv.") && !pkg.startsWith("org.droidtv.nettvapp")) continue;
+                if (pkg.equals("com.android.tv.settings") ||
+                    pkg.equals("com.android.vending") ||
+                    pkg.equals("com.google.android.play.games") ||
+                    pkg.equals("com.google.android.videos") ||
+                    pkg.equals("io.cleanyourtv.ui") ||
+                    pkg.equals("uk.org.fancy.AndroidTvHomeKit")) {
+                    continue;
+                }
+
+                Log.i(TAG, "Registering XTv Application input source " + application.label + " (" + pkg + ")");
+
+                XTvApplicationInputSource xtvApplicationInputSource = new XTvApplicationInputSource(this, application);
+                xtvApplicationInputSources.add(xtvApplicationInputSource);
+                inputSources.add(xtvApplicationInputSource);
+            }
+        } catch (Exception err) {
+            Log.w(TAG, "Could not load XTv applications at startup: " + err.toString());
+        }
     }
 
     public Collection<InputSourceInterface> getInputSources() {
@@ -100,20 +92,16 @@ public class InputSourceManager implements InputSourceManagerInterface, PollThre
 
     public CompletableFuture<InputSourceInterface> getActiveInput() {
         return television.xtvhttp.getCurrentActivity().thenApply(activity -> {
-            Log.i(TAG, "Current activity " + activity.packageName + "/" + activity.className);
+            if (activity == null || activity.packageName == null) {
+                return homeScreenInputSource;
+            }
 
-            if (activity.packageName.contentEquals("com.google.android.tvlauncher")) {
+            if (activity.packageName.contentEquals("com.google.android.tvlauncher") ||
+                activity.packageName.contentEquals("io.cleanyourtv.ui")) {
                 return homeScreenInputSource;
             }
 
             if (activity.packageName.contentEquals("com.droidtv.channels") ||
-                // (activity.packageName.contentEquals("com.droidtv.settings") && activity.className.contentEquals("com.droidtv.settings.quicksettings.QuickSettingsActivity")) ||
-                // (activity.packageName.contentEquals("com.droidtv.settings") && activity.className.contentEquals("com.droidtv.settings.AmbilightOsd")) ||
-                // (activity.packageName.contentEquals("com.droidtv.settings") && activity.className.contentEquals("com.droidtv.settings.multiview.MultiviewDrawerActivity")) ||
-                // (activity.packageName.contentEquals("com.droidtv.settings") && activity.className.contentEquals("com.droidtv.settings.common.AutoPowerDownActivity")) ||
-                // (activity.packageName.contentEquals("com.droidtv.settings") && activity.className.contentEquals("com.droidtv.settings.common.LowBatteryWarningActivity")) ||
-                // (activity.packageName.contentEquals("com.droidtv.settings") && activity.className.contentEquals("com.droidtv.settings.common.MessageDialogActivity")) ||
-                // (activity.packageName.contentEquals("com.droidtv.settings") && activity.className.contentEquals("com.droidtv.settings.common.HDRSignalDetectedDialogActivity")) ||
                 activity.packageName.contentEquals("com.droidtv.settings") ||
                 activity.packageName.contentEquals("com.android.tv.settings") ||
                 activity.packageName.contentEquals("org.droidtv.philipstvdrawer") ||
@@ -122,49 +110,40 @@ public class InputSourceManager implements InputSourceManagerInterface, PollThre
                 activity.packageName.contentEquals("com.google.android.apps.mediashell") ||
                 activity.packageName.contentEquals("com.google.android.tvrecommendations")
             ) {
-                // If showing the source/channel list or any overlays return the last active input source
                 return lastInputSource != null ? lastInputSource : homeScreenInputSource;
             }
 
             if (activity.packageName.contentEquals("org.droidtv.playtv") &&
+                activity.className != null &&
                 activity.className.contentEquals("org.droidtv.playtv.PlayTvActivity")
             ) {
                 String inputid = getCurrentInputSourceId();
-                Log.i(TAG, "Current input source property " + inputid);
 
                 for (TIFInputSource inputSource: tifInputSources) {
                     if (!inputSource.tvInputInfo.getId().equals(inputid)) continue;
-
-                    Log.i(TAG, "Current input source name " + inputSource.getName());
                     return inputSource;
                 }
-
-                Log.i(TAG, "Didn't find active input from ID " + inputid);
             }
 
             List<XTvApplicationInputSource> matchingApplicationInputSources = new LinkedList<XTvApplicationInputSource>();
             for (XTvApplicationInputSource inputSource: xtvApplicationInputSources) {
                 if (inputSource.application.intent.activity.packageName.contentEquals(activity.packageName)) {
-                    if (inputSource.application.intent.activity.className.contentEquals(activity.className)) return inputSource;
-
+                    if (activity.className != null &&
+                        inputSource.application.intent.activity.className != null &&
+                        inputSource.application.intent.activity.className.contentEquals(activity.className)) {
+                        return inputSource;
+                    }
                     matchingApplicationInputSources.add(inputSource);
                 }
             }
 
-            // If there's only one ActivityInputSource for the current activity's package, use that (even if it doesn't match exactly)
-            // if (package_activity_input_sources.length === 1) return package_activity_input_sources[0];
             if (matchingApplicationInputSources.size() == 1) return matchingApplicationInputSources.get(0);
 
-            Log.w(TAG, "No input sources match the current activity " + activity.packageName);
-
-            // activities/current returns org.droidtv.epgdata for all NetTv apps
-            // NetTv apps (for example org.droidtv.nettvapp4340) launch org.droidtv.nettv_launcherapp, which launches
-            // org.droidtv.epgdata
-
             return homeScreenInputSource;
+        }).exceptionally(err -> {
+            return lastInputSource != null ? lastInputSource : homeScreenInputSource;
         }).thenApply(inputSource -> {
             lastInputSource = inputSource;
-
             return inputSource;
         });
     }
@@ -184,15 +163,12 @@ public class InputSourceManager implements InputSourceManagerInterface, PollThre
     }
 
     public void poll() throws Exception {
-        Log.i(TAG, "Polling input source; was " + (this.lastInputSource == null ? "unknown" : this.lastInputSource.getId()));
-        InputSourceInterface lastInputSource = this.lastInputSource;
+        InputSourceInterface prev = this.lastInputSource;
         InputSourceInterface inputSource = getActiveInput().get();
 
-        if (inputSource != lastInputSource) {
+        if (inputSource != prev) {
             Log.i(TAG, "Input source changed; now " + inputSource.getId());
-
-            callback.changed();
-
+            if (callback != null) callback.changed();
             this.lastInputSource = inputSource;
         }
     }

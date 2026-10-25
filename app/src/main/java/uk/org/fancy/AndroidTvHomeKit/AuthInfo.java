@@ -8,13 +8,6 @@ import android.util.Log;
 import io.github.hapjava.HomekitAuthInfo;
 import io.github.hapjava.HomekitServer;
 
-/**
- * This is a simple implementation that should never be used in actual production. The mac, salt, and privateKey
- * are being regenerated every time the application is started. The user store is also not persisted. This means pairing
- * needs to be re-done every time the app restarts.
- *
- * @author Andy Lintner
- */
 public class AuthInfo implements HomekitAuthInfo {
     private static final String TAG = "HomeKit:AuthInfo";
 
@@ -39,7 +32,7 @@ public class AuthInfo implements HomekitAuthInfo {
 
     @Override
     public String getMac() {
-        return authState.mac;
+        return authState.mac != null ? authState.mac.toUpperCase(java.util.Locale.US) : "";
     }
 
     @Override
@@ -75,8 +68,24 @@ public class AuthInfo implements HomekitAuthInfo {
         return authState.userKeyMap.get(username);
     }
 
+    @Override
+    public boolean hasUser() {
+        return isPaired();
+    }
+
     public boolean isPaired() {
         return !authState.userKeyMap.isEmpty();
+    }
+
+    public int getPairedUserCount() {
+        return authState.userKeyMap.size();
+    }
+
+    public void resetPairings() {
+        authState.userKeyMap.clear();
+        authState.mac = HomekitServer.generateMac();
+        Log.i(TAG, "Cleared all HomeKit pairings and generated new MAC: " + authState.mac);
+        notifyChange();
     }
 
     public void onChange(Consumer<AuthState> _callback) {
