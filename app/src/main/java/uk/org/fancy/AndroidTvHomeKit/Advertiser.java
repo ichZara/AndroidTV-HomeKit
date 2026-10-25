@@ -147,9 +147,10 @@ public class Advertiser implements HomekitAdvertiser {
 
         NsdServiceInfo serviceInfo = new NsdServiceInfo();
 
-        String cleanName = (label == null || label.trim().isEmpty()) ? "Philips TV" : label.replace("/", " ").trim();
+        String cleanName = (label == null || label.trim().isEmpty()) ? "Android TV" : label.replace("/", " ").trim();
         String upperMac = mac != null ? mac.toUpperCase(java.util.Locale.US) : "";
-        serviceInfo.setServiceName("Philips TV " + upperMac.substring(Math.max(0, upperMac.length() - 5)).replace(":", ""));
+        String suffix = upperMac.length() >= 5 ? upperMac.substring(upperMac.length() - 5).replace(":", "") : "TV";
+        serviceInfo.setServiceName(cleanName + " " + suffix);
         serviceInfo.setServiceType(SERVICE_TYPE);
         serviceInfo.setPort(port);
         serviceInfo.setAttribute("sf", discoverable ? "1" : "0");

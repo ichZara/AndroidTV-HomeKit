@@ -31,10 +31,10 @@ public class Television implements TelevisionInterface,
     private final PowerState powerStateManager;
     private final InputSourceManager inputSourceManager;
     private final TelevisionSpeaker speaker;
-    private String name = "Philips Android TV";
-    private final String manufacturer = "Philips";
-    private String model = Build.MODEL != null ? Build.MODEL : "Philips TV";
-    private String serialNumber = "YK1A2234440381";
+    private String name = (Build.MODEL != null ? Build.MODEL : "Android TV") + " HomeKit";
+    private final String manufacturer = Build.MANUFACTURER != null ? Build.MANUFACTURER : "Android";
+    private String model = Build.MODEL != null ? Build.MODEL : "Android TV";
+    private String serialNumber = Build.SERIAL != null && !Build.UNKNOWN.equals(Build.SERIAL) ? Build.SERIAL : "ATV" + Integer.toHexString(Build.MODEL != null ? Build.MODEL.hashCode() : 0).toUpperCase(java.util.Locale.US);
     private String firmwareRevision = getSystemProperty("ro.tpvision.product.swversion", Build.DISPLAY);
 
     public Television(HomeKitService _service) {
