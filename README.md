@@ -1,94 +1,95 @@
 # AndroidTV-HomeKit
 
-Connect your Android TV to the Apple Home app on your iPhone or iPad!  
-*Android televizyonunuzu iPhone veya iPad'deki Apple Ev (Home) uygulamasına bağlayın!*
+Native Apple HomeKit accessory service running directly on Android TV & Google TV.  
+*Doğrudan Android TV ve Google TV cihazları üzerinde çalışan yerel Apple HomeKit köprü servisi.*
 
 ![AndroidTV HomeKit Dashboard](pairing_screen.png)
 
 > **Credits & Upstream Project:**  
-> This project is a modernized, bug-fixed, and extended fork of **[Samuel Thomas (samuelthomas2774/android-tv-homekit)](https://github.com/samuelthomas2774/android-tv-homekit)**. Huge thanks to Samuel Thomas for the foundational architecture!  
+> This project is an updated and extended fork of **[Samuel Thomas (samuelthomas2774/android-tv-homekit)](https://github.com/samuelthomas2774/android-tv-homekit)**. We are grateful to Samuel Thomas for establishing the foundation of this project.  
 > *Bu proje, Samuel Thomas tarafından başlatılan orijinal [samuelthomas2774/android-tv-homekit](https://github.com/samuelthomas2774/android-tv-homekit) projesinin güncellenmiş ve genişletilmiş sürümüdür.*
 
 ---
 
-## Uyumluluk ve Test Edilen Modeller / Compatibility
+## Device Compatibility Notice / Cihaz Uyumluluk Bildirimi
 
-- **Bizzat Test Edilip Doğrulanan Model:** **Philips 58PUS8507/12 (58PUS8507/62, Android TV 11)** üzerinde tüm fonksiyonlarıyla (Apple Ev eşleşmesi, Ambilight lamba/parlaklık/renk kontrolü, iPhone Denetim Merkezi Remote kumandası, ses tuşları ve HDMI geçişleri) test edilmiş ve sorunsuz çalıştığı doğrulanmıştır.
-- **Tüm Android TV & Google TV Cihazları (Evrensel):** Sony, TCL, Xiaomi, Chromecast with Google TV, Onn ve diğer tüm Android TV (Android 9+) cihazlarında çalışır. Cihazınızın marka ve modelini otomatik algılayarak HomeKit üzerinde adlandırır.
+- **Verified & Tested Model / Bizzat Test Edilip Doğrulanan Model:**  
+  **Philips 58PUS8507/12 (58PUS8507/62, Android TV 11)** — Apple Home pairing, iPhone Control Center Remote, physical volume rockers, HDMI input switching, and Ambilight light controls were verified.
+- **Other Android TV & Google TV Devices / Diğer Cihazlar:**  
+  Designed for Android TV 9 through 14 (Sony, TCL, Xiaomi, Chromecast with Google TV, Onn, etc.). However, **hardware and manufacturer API differences mean compatibility cannot be 100% guaranteed on every brand and model**. Please test on your own TV and report your findings in GitHub Issues!  
+  *Android TV 9–14 kullanan diğer tüm cihazları destekleyecek şekilde tasarlanmıştır. Ancak üretici ve donanım kısıtlamaları nedeniyle her cihazda %100 kusursuz çalışma garantisi verilemez; lütfen kendi cihazınızda test edip geri bildirimde bulunun.*
 
 ---
 
 ## English
 
 ### What Does This App Do?
-This app runs directly on your Android TV and turns it into an **Apple HomeKit Television**.
+AndroidTV-HomeKit turns your Android TV into an official **Apple HomeKit Television** without requiring external hardware like a Raspberry Pi, Mac, or home server running Homebridge / Home Assistant.
 
-You don't need a Raspberry Pi, Mac, Homebridge, or Home Assistant server running. Simply install this APK on your TV, scan the QR code from your iPhone, and your TV is instantly in your Apple ecosystem!
-
-### What Can You Control from iPhone / iPad?
-1. **Apple Home (Ev) App:**
-   - **Power:** Turn your TV On or Off (Sleep / Wake).
-   - **Inputs:** Switch between HDMI ports, TV tuner, and installed streaming apps (Netflix, YouTube, Prime Video, etc.).
-   - **Ambilight (Philips TVs):** Shows up as an independent Apple Home Lightbulb — adjust brightness, turn on/off, or change colors.
-2. **Apple TV Remote in iOS Control Center:**
-   - Swipe down from the top-right of your iPhone to open Control Center, tap the Remote icon, and select your TV.
-   - Use the D-Pad, OK, Back, and Play/Pause buttons to navigate TV menus without the physical remote.
-   - Use your iPhone's **physical volume buttons** on the side of your phone to adjust the TV volume.
+### Features
+1. **Apple Home App:**
+   - **Power (Standby):** Sleep and Wake your TV directly from your iPhone, iPad, or Apple Watch.
+   - **Input Switching:** Switch between HDMI ports, TV tuner, and installed streaming apps.
+   - **Ambilight (Philips TVs):** Integrated as a native Apple Home Lightbulb (Power, Brightness, Color Hue & Saturation).
+2. **Apple TV Remote (iOS Control Center):**
+   - Swipe down on iPhone/iPad to use the directional pad, OK, Back, and Play/Pause.
+   - Control TV volume using your phone's **physical side volume buttons**.
 
 ---
 
-## Adım Adım Kurulum Rehberi (Türkçe)
+## Adım Adım Kurulum Rehberi (Step-by-Step Installation)
 
-Kurulumu ister bilgisayarınızdan manuel olarak yapabilir, isterseniz aşağıdaki hazır yapay zeka (AI) promptunu ChatGPT / Claude / Gemini'ye kopyalayarak tüm adımları ona yaptırabilirsiniz.
-
-### 1. Televizyonda Geliştirici Seçenekleri ve Hata Ayıklamayı Açma
-1. Televizyonunuzda **Ayarlar (Settings)** -> **Cihaz Tercihleri** -> **Hakkında** bölümüne gidin.
-2. En altta bulunan **Android TV Derlemesi (Build)** seçeneğine gelin ve kumandanın **OK (Orta)** tuşuna arka arkaya **7 kez** hızlıca basın. Ekranda *"Artık bir geliştiricisiniz!"* bildirimi çıkacaktır.
-3. Bir önceki menüye dönüp **Geliştirici Seçenekleri**'ne girin.
-4. **USB Hata Ayıklama (USB Debugging)** ve varsa **Kablosuz Hata Ayıklama** seçeneğini aktif hale getirin.
-5. TV'nizin IP adresini öğrenin (**Ayarlar** -> **Ağ ve İnternet** -> Bağlı olduğunuz Wi-Fi'ye tıklayın, örn: `192.168.1.50`).
+### 1. Televizyonda ADB Hata Ayıklamayı Açma
+1. TV'de **Ayarlar (Settings)** -> **Cihaz Tercihleri** -> **Hakkında** yolunu izleyin.
+2. **Android TV Derlemesi (Build)** seçeneğine kumandanın **OK** tuşuyla **7 kez** arka arkaya basın (*"Artık bir geliştiricisiniz"* bildirimi çıkana kadar).
+3. Geri gelip **Geliştirici Seçenekleri** menüsüne girin ve **USB Hata Ayıklama (USB Debugging)** seçeneğini açın.
+4. **Ayarlar** -> **Ağ ve İnternet** kısmından TV'nizin yerel IP adresini not edin (örnek: `192.168.1.50`).
 
 ### 2. Uygulamayı Televizyona Yükleme
-Bilgisayarınızda ADB kuruluysa (veya telefonunuzdaki ADB uygulamasıyla):
-```bash
-# 1. Televizyona kablosuz bağlanın:
-adb connect <TELEVIZYON_IP_ADRESI>:5555
-# (Televizyon ekranında 'Bu bilgisayara her zaman izin verilsin mi?' kutucuğu çıkar, kumandayla 'Her zaman izin ver'i işaretleyip OK deyin)
+Bilgisayarınızdan terminal veya PowerShell açın:
 
-# 2. Releases sayfasından indirdiğiniz APK'yı yükleyin:
+```bash
+# 1. Televizyona bağlanın:
+adb connect <TELEVIZYON_IP_ADRESI>:5555
+# (TV ekranına 'Bu bilgisayara izin verilsin mi?' uyarısı gelir; 'Her zaman izin ver'i seçip OK tuşuna basın)
+
+# 2. İndirdiğiniz APK'yı yükleyin (Releases sayfasından indirebilirsiniz):
 adb install -r AndroidTvHomeKit.apk
 
-# 3. TV'deki arayüzü başlatın:
+# 3. TV ekranındaki kurulum ve QR kod arayüzünü başlatın:
 adb shell am start -n uk.org.fancy.AndroidTvHomeKit/.MainActivity
 ```
 
-### 3. iPhone / iPad'den Ev Uygulamasına Ekleme
+### 3. iPhone / iPad'e Ekleme
 1. iPhone'unuzda **Ev (Home)** uygulamasını açın.
-2. Sağ üstteki **+** simgesine dokunup **Aksesuar Ekle** seçeneğini seçin.
-3. Televizyon ekranında açılan QR kodu kameranızla okutun (veya ekranda yazan 8 haneli PIN kodunu girin).
-4. Eşleşme tamamlandı! Artık televizyonunuz Apple Ev uygulamasında ve iPhone Denetim Merkezi Remote kumandasında hazırdır.
+2. Sağ üstteki **+** simgesine dokunup **Aksesuar Ekle** deyin.
+3. Televizyon ekranında açılan QR kodu okutun (veya ekrandaki `031-45-154` PIN kodunu girin).
 
 ---
 
-## Yapay Zeka (AI) ile Otomatik Kurulum Promptu
+## Yapay Zeka (AI) ile Otomatik Kurulum Promptu / AI Prompt for Setup
 
-ADB komutlarıyla uğraşmak istemiyorsanız, aşağıdaki promptu kopyalayıp kullandığınız yapay zekaya (ChatGPT, Claude, Gemini vb.) yapıştırın:
+Aşağıdaki hazır promptu kopyalayıp kullandığınız yapay zeka asistanına (ChatGPT, Claude, Gemini veya yerel AI terminalinize) vererek kurulumu baştan sona ona yaptırabilirsiniz:
 
-```markdown
-Bilgisayarım ile aynı Wi-Fi ağına bağlı bir Android TV'm var.
-Televizyonumun IP adresi: [BURAYA_TELEVIZYON_IP_ADRESINI_YAZIN]
-İndirdiğim APK dosyasının yolu: [BURAYA_INDIRILEN_AndroidTvHomeKit.apk_DOSYA_YOLUNU_YAZIN]
+````markdown
+Aşağıdaki GitHub deposunu kullanarak Android TV'me Apple HomeKit köprüsünü kurmak istiyorum:
+Repo: https://github.com/ichZara/AndroidTV-HomeKit
+Televizyonumun yerel IP adresi: [BURAYA_TELEVIZYONUN_IP_ADRESINI_YAZIN, örn: 192.168.1.50]
 
-Lütfen bilgisayarımdan ADB aracılığıyla televizyonuma bağlanıp bu APK'yı kurmamı ve televizyonda açmamı sağlayan adımları ve komutları çalıştır veya bana sırasıyla yaz.
-```
+Lütfen şu adımları benim için sırasıyla açıkla veya terminal komutlarıyla çalıştır:
+1. Depodaki son sürüm APK'yı (AndroidTvHomeKit.apk) indir veya depoyu klonlayıp gradle ile derle.
+2. Bilgisayarımdan ADB ile yukarıdaki televizyon IP adresine bağlan.
+3. APK'yı televizyona yükle ve kurulum arayüzünü (MainActivity) televizyon ekranında başlat.
+4. Hata alırsam (örneğin cihaz bulunamadı veya bağlantı reddedildi) nasıl düzelteceğimi belirt.
+````
 
 ---
 
-## Hatalar ve Geri Bildirim / Issue Reporting
+## Hata Bildirimi ve Destek / Issues & Feedback
 
-Bir sorunla, beklenmeyen bir hatayla veya TV modelinizle ilgili bir uyumsuzlukla karşılaşırsanız lütfen çekinmeden **[GitHub Issues](https://github.com/ichZara/AndroidTV-HomeKit/issues)** sayfasından bildirin! 
+Cihazınızda bir hata, çökme veya kumanda tuş uyumsuzluğu fark ederseniz lütfen **[GitHub Issues](https://github.com/ichZara/AndroidTV-HomeKit/issues)** sayfası üzerinden bildirin!
 
-Hata bildirirken televizyonunuzun marka/modelini ve Android sürümünü belirtmeniz sorunun hızla çözülmesine yardımcı olacaktır.
+Bildirirken televizyonunuzun **markasını, tam model kodunu ve Android sürümünü** eklemeniz sorunun tespit edilip çözülmesini kolaylaştıracaktır.
 
 ---
 
