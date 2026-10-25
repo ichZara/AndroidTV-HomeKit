@@ -22,16 +22,18 @@ public class TelevisionService implements Service {
     private final PowerStateInterface powerState;
     private final InputSourceManagerInterface inputSourceManager;
     private final List<InputSourceService> inputSourceServices;
+    private final TelevisionSpeakerService speakerService;
     private HomekitCharacteristicChangeCallback activeCallback;
     private HomekitCharacteristicChangeCallback activeIdentifierCallback;
     private HomekitCharacteristicChangeCallback configuredNameCallback;
     private HomekitCharacteristicChangeCallback sleepDiscoveryModeCallback;
 
-    public TelevisionService(TelevisionAccessory _accessory, List<InputSourceService> _inputSourceServices) {
+    public TelevisionService(TelevisionAccessory _accessory, List<InputSourceService> _inputSourceServices, TelevisionSpeakerService _speakerService) {
         accessory = _accessory;
         powerState = accessory.service.implementation.getPowerStateManager();
         inputSourceManager = accessory.service.implementation.getInputSourceManager();
         inputSourceServices = _inputSourceServices;
+        speakerService = _speakerService;
     }
 
     public String getType() {
@@ -106,6 +108,10 @@ public class TelevisionService implements Service {
 
     public List<Service> getLinkedServices() {
 		List<Service> linkedServices = new LinkedList<Service>();
+
+		if (speakerService != null) {
+			linkedServices.add(speakerService);
+		}
 
 		for (InputSourceService inputSourceService: inputSourceServices) {
 			linkedServices.add(inputSourceService);

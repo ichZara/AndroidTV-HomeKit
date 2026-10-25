@@ -81,7 +81,7 @@ public class TelevisionSpeaker implements TelevisionSpeakerInterface,
     }
 
     public VolumeControlType getVolumeControlType() {
-        return VolumeControlType.ABSOLUTE;
+        return VolumeControlType.RELATIVE_WITH_CURRENT;
     }
 
     public void incrementVolume() {

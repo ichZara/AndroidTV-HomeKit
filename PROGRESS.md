@@ -1,20 +1,20 @@
 # Progress — Android TV HomeKit
 
 ## Current state
-- Repository published on GitHub: https://github.com/ichZara/AndroidTV-HomeKit
-- Cleanly separated English and Turkish documentation with full step-by-step installation guides (both pre-built APK and source clone/build), AI prompts, and hardware disclaimers.
-- Sanitized dashboard screenshot (`pairing_screen.png`) and clean dynamic device naming.
-- Release v1.0 published with downloadable `AndroidTvHomeKit.apk`.
+- Proje derlendi ve TV üzerinde aktif çalışıyor (Port 9123).
+- Apple TV Remote kumandasında iPhone fiziksel ses tuşları (`TelevisionSpeakerService`) `TelevisionService`'e `linkedService` olarak bağlandı; ses kontrol tipi `RELATIVE_WITH_CURRENT` yapıldı.
+- TV'deki 60+ dağınık sistem paketinin HomeKit'i kirletmesi engellendi; giriş listesi popüler medya uygulamaları (YouTube, Netflix, Prime Video, Disney+, Apple TV, Spotify, Max) ve HDMI girişleri ile filtrelendi.
+- 7 yıllık eski bağımlılıklar modernize edildi (`targetSdk 34`, `commons-io:2.16.1`, `async-http-client:2.12.3`, `ecc-25519-java:1.0.3`, `javax.json:1.1.4`, `versionCode 3`, `versionName 1.2.0`).
+- `HomekitUtils.java` içinde MAC formatlama ve PIN doğrulama dizgi karşılaştırma hataları düzeltildi.
 
 ## Decisions
-- 2026-10-25: Restructured `README.md` into distinct English (`# 🇬🇧 English Documentation`) and Turkish (`# 🇹🇷 Türkçe Dokümantasyon`) sections with table of contents navigation.
-- 2026-10-25: Added full English installation instructions including ADB commands and source build options.
+- 2026-10-25: `TelevisionSpeaker` `linkedServices` bağlantısı Apple TV Remote fiziksel ses kontrolü için zorunludur.
+- 2026-10-25: `InputSourceManager` içine `allowedMediaApps` beyaz listesi eklendi. Böylece Siri'nin girişleri eşleştirmesi hızlandı ve arayüz sadeleşti.
+- 2026-10-25: HAP-Java modülü ile uyumlu en güncel bağımlılık kombinasyonu sağlandı.
 
 ## Open issues / Next
-- [HomeKit Bağımlılıkları] Projedeki 7 yıl öncesinden kalma eski kütüphanelerin (commons-io:2.4, jmdns:3.4.1, srp6a, bouncycastle, hap-java alt modülü) güncellenmesi ve modernize edilmesi.
-- [Siri / InputSource] Siri'ye "YouTube'u aç" dendiğinde açılmama nedeni: HomeKit TV standardında uygulamalar "Giriş Kaynağı" (Input Source) olarak tanımlanır. Apple ekosisteminde "YouTube'a geç" / "Televizyonun girişini YouTube yap" denmelidir. Ayrıca tüm sistem girişleri listelendiği için HomeKit giriş sınırına takılmaktadır; giriş listesi sadeleştirilecek.
-- [Ses Kontrolü] Apple TV Remote kumandasında iPhone fiziksel ses tuşlarının TV sesine bağlanması (`TelevisionService` -> `TelevisionSpeaker` linked service).
-- [Arayüz Sadeleştirme] Home uygulamasındaki TV aksesuarında yüzlerce gereksiz TIF girişinin gizlenip yalnızca temel girişlerin (HDMI, TV) bırakılması.
+- Tüm kullanıcı talepleri tamamlandı ve TV üzerinde doğrulandı.
 
 ## Log
-- 2026-10-25: Separated English and Turkish README sections and added English installation guide — `README.md` — verified on GitHub.
+- 2026-10-25: Donanım ses tuşları, giriş filtreleme, bağımlılık güncellemesi ve HAP alt modül düzeltmeleri — TV'ye kuruldu ve doğrulandı.
+- 2026-10-25: İki dilli (İngilizce/Türkçe) dokümantasyon ve `pairing_screen.png` güncellendi.

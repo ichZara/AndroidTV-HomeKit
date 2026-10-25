@@ -55,21 +55,24 @@ public class InputSourceManager implements InputSourceManagerInterface, PollThre
             }
         }
 
+        java.util.Set<String> allowedMediaApps = new java.util.HashSet<>(java.util.Arrays.asList(
+            "com.google.android.youtube.tv",
+            "com.netflix.ninja",
+            "com.amazon.amazonvideo.livingroom",
+            "com.disney.disneyplus",
+            "com.apple.atve.androidtv.appletv",
+            "com.spotify.tv.android",
+            "com.wbd.stream",
+            "com.hbo.hbonow",
+            "com.google.android.youtube.tvunplugged"
+        ));
+
         try {
             List<XTvHttp.Application> xtvApplicationInputs = television.xtvhttp.getApplications().get(5, TimeUnit.SECONDS);
 
             for (XTvHttp.Application application: xtvApplicationInputs) {
                 String pkg = application.intent.activity.packageName;
-                if (pkg == null) continue;
-                if (pkg.startsWith("org.droidtv.") && !pkg.startsWith("org.droidtv.nettvapp")) continue;
-                if (pkg.equals("com.android.tv.settings") ||
-                    pkg.equals("com.android.vending") ||
-                    pkg.equals("com.google.android.play.games") ||
-                    pkg.equals("com.google.android.videos") ||
-                    pkg.equals("io.cleanyourtv.ui") ||
-                    pkg.equals("uk.org.fancy.AndroidTvHomeKit")) {
-                    continue;
-                }
+                if (pkg == null || !allowedMediaApps.contains(pkg)) continue;
 
                 Log.i(TAG, "Registering XTv Application input source " + application.label + " (" + pkg + ")");
 

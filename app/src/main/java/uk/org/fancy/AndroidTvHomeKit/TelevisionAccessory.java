@@ -82,15 +82,16 @@ public class TelevisionAccessory implements HomekitAccessory, Bridge {
 			inputSourceServices.add(inputSourceService);
 		}
 
-		// Television
-		TelevisionService television = new TelevisionService(this, inputSourceServices);
-		services.add(television);
-
 		// TelevisionSpeaker
+		TelevisionSpeakerService speaker = null;
 		if (service.implementation instanceof TelevisionInterface.TelevisionSpeakerInterface) {
-			TelevisionSpeakerService speaker = new TelevisionSpeakerService(this);
+			speaker = new TelevisionSpeakerService(this);
 			services.add(speaker);
 		}
+
+		// Television
+		TelevisionService television = new TelevisionService(this, inputSourceServices, speaker);
+		services.add(television);
 
 		for (InputSourceService inputSourceService: inputSourceServices) {
 			services.add(inputSourceService);
