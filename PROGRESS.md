@@ -1,17 +1,22 @@
-# Progress — Android TV HomeKit (Philips JointSPACE v6 + Ambilight)
+# Progress — Android TV HomeKit
 
 ## Current state
-- Native Android TV HomeKit service (`uk.org.fancy.AndroidTvHomeKit`) built and deployed to Philips 58PUS8507/12 (`192.168.1.8:5555`).
-- Fixed the "Accessory is already in another home" ("Aksesuar zaten başka bir evde") QR code bit-shift bug and lowercase/off-by-one MAC generation bug.
-- JointSPACE v6 digest credentials (`homekitphilipstv`) stored and verified.
+- Repository published on GitHub: https://github.com/ichZara/AndroidTV-HomeKit
+- Cleanly separated English and Turkish documentation with full step-by-step installation guides (both pre-built APK and source clone/build), AI prompts, and hardware disclaimers.
+- Sanitized dashboard screenshot (`pairing_screen.png`) and clean dynamic device naming.
+- Release v1.0 published with downloadable `AndroidTvHomeKit.apk`.
 
 ## Decisions
-- 2026-10-25: Fixed `HomeKitSetupPayload.generateSetupUri` bit shifts (`category << 31` and `flags << 27` instead of `<< 30` and `<< 26`) — shifting `category = 31` by `<< 30` had set bit 30 (`Paired/WAC` flag in the 4-bit setup flags field), which made iOS Home immediately report "Accessory is already in another home".
-- 2026-10-25: Fixed `HomekitUtils.generateMac()` to format all 6 bytes as uppercase `%02X` so `sh` (setup hash) in mDNS TXT records matches `id` (`MAC`) and `X-HM://` setup ID (`PTV8`).
-- 2026-10-25: Overrode `AuthInfo.hasUser()` to return `isPaired()` and regenerated a fresh uppercase MAC on `resetPairings()` while updating NSD TXT records (`sf=1`, `id`, `sh`).
+- 2026-10-25: Restructured `README.md` into distinct English (`# 🇬🇧 English Documentation`) and Turkish (`# 🇹🇷 Türkçe Dokümantasyon`) sections with table of contents navigation.
+- 2026-10-25: Added full English installation instructions including ADB commands and source build options.
 
 ## Open issues / Next
-- Ready for user to scan the updated QR code in iOS Home ("Ev") app.
+- [Yarın bakılacak] iOS Home kumandada ses kontrolü:
+  - Apple TV Remote arayüzünde ekranda ses tuşları bulunmaz; Apple'ın HomeKit TV standardına göre ses, iPhone'un fiziksel yan tuşları (+/-) ile yönetilir.
+  - Fiziksel tuşların tetiklenmesi için `TelevisionService`'in `getLinkedServices()` metoduna `TelevisionSpeakerService`'in bağlanması (`linkedServices.add(speaker)`) ve `VolumeControlType` / `VolumeSelector` akışının doğrulanması gerekiyor.
+- [Yarın bakılacak] iOS Home TV aksesuar arayüzü ve kumanda tuşları:
+  - TV aksesuarına basıldığında çıkan arayüzün dağınık görünmesinin sebebi tüm TIF/uygulama girişlerinin (InputSource) filtrelenmeden listelenmesi. Giriş kaynaklarının görünürlük (`TargetVisibilityState`, `CurrentVisibilityState`, `IsConfigured`) ayarları düzenlenecek.
+  - iOS Denetim Merkezi (Control Center) kumandası ve Home içi kumanda ikonu entegrasyonu netleştirilecek.
 
 ## Log
-- 2026-10-25: Fixed QR payload bit shifts, MAC formatting, and NSD advertisement — `HomeKitSetupPayload.java`, `HomekitUtils.java`, `AuthInfo.java`, `AuthState.java`, `Advertiser.java`, `HomeKitService.java` — verified with `gradlew assembleDebug`, `adb install -r`, `pm clear`, and screenshot `homekit_qr_fixed.png`.
+- 2026-10-25: Separated English and Turkish README sections and added English installation guide — `README.md` — verified on GitHub.
