@@ -172,7 +172,7 @@ public class MainActivity extends Activity {
         rightCard.addView(statusDetailsView, detailsLp);
 
         xtvStatusView = new TextView(this);
-        xtvStatusView.setText("Philips JointSPACE API: Kontrol ediliyor...");
+        xtvStatusView.setText("Gelişmiş TV API (Ambilight): Kontrol ediliyor...");
         xtvStatusView.setTextColor(Color.parseColor("#7EE787"));
         xtvStatusView.setTextSize(TypedValue.COMPLEX_UNIT_SP, 14);
         LinearLayout.LayoutParams xtvLp = new LinearLayout.LayoutParams(
@@ -183,7 +183,7 @@ public class MainActivity extends Activity {
         xtvLp.bottomMargin = dp(20);
         rightCard.addView(xtvStatusView, xtvLp);
 
-        Button pairXtvButton = createActionButton("Philips TV API Eşleştir (Otomatik / PIN)", "#238636");
+        Button pairXtvButton = createActionButton("Gelişmiş TV API Eşleştir (Ambilight / Ekstra)", "#238636");
         pairXtvButton.setOnClickListener(v -> startPhilipsApiPairing());
         rightCard.addView(pairXtvButton, createButtonLayoutParams());
 
@@ -290,8 +290,8 @@ public class MainActivity extends Activity {
             Television tv = (Television) svc.implementation;
             boolean hasCreds = tv.xtvhttp.hasCredentials();
             xtvStatusView.setText(hasCreds
-                ? "Philips JointSPACE v6 API: Eşleşti (Kullanıcı: " + tv.xtvhttp.getUsername() + ")"
-                : "Philips JointSPACE v6 API: Eşleşmedi (Aşağıdaki butonla eşleştirin)");
+                ? "Gelişmiş TV API: Eşleşti (Ambilight & Girişler Aktif)"
+                : "Gelişmiş TV API: Eşleşmedi (Philips Ambilight için aşağıdaki butonla eşleştirin)");
             xtvStatusView.setTextColor(Color.parseColor(hasCreds ? "#7EE787" : "#FFA657"));
         }
     }

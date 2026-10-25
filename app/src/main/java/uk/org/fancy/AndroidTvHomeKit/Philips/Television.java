@@ -23,8 +23,8 @@ public class Television implements TelevisionInterface,
     public static final String PREFS_NAME = "homekit_prefs";
     public static final String PREF_XTV_USER = "xtv_username";
     public static final String PREF_XTV_PASS = "xtv_password";
-    private static final String DEFAULT_USER = "homekitphilipstv";
-    private static final String DEFAULT_PASS = "70c52a323e1197759ddcb56d1e242993fc11687eff7223a08b603e120e4cfc93";
+    private static final String DEFAULT_USER = "";
+    private static final String DEFAULT_PASS = "";
 
     public final HomeKitService service;
     public final XTvHttp xtvhttp;
