@@ -1,98 +1,87 @@
-Android TV HomeKit
-===
+# AndroidTV-HomeKit (Universal Android TV & Philips Ambilight)
 
-HomeKit service for Android TVs. Currently only works with Philips Android TVs and requires a hardcoded
-username/password. Uses some bits I reverse engineered from the XTv service (the API on ports 1625-1627).
+Native Apple HomeKit (HAP) accessory running directly on Android TV devices.  
+*Doğrudan Android TV üzerinde çalışan yerel Apple HomeKit (HAP) köprü servisi.*
 
-### TODO
-
-- [ ] Setup interface
-    - I have no idea how to do this.
-    - [ ] Walk through creating a pairing
-    - [ ] Show a QR code and random PIN (generated every time the app is opened) to pair with a HomeKit client
-    - [ ] Button to reset pairings
-- [ ] Disable unauthenticated requests for the release build
-- [ ] Read the username and password from a file created by the setup interface
-
-### Requirements
-
-To build:
-
-- Java
-- Android SDK (API 25)
-
-To run:
-
-- Android 8 Oreo
-- A compatible TV:
-    - Philips TV with xtv API 6.0 or later (see [usage](#usage))
-
-This requires Android 8.0 (API 26) but targets Android 7.1 (API 25) because Android 8 add restrictions on apps running
-in the background. Android 8 is only required for
-[Async Http Client](https://github.com/AsyncHttpClient/async-http-client) - for Android 7 support this could probably
-be replaced with another library.
-[Other TVs can be supported by returning a different implementation in HomeKitService](app/src/main/java/uk/org/fancy/AndroidTvHomeKit/HomeKitService.java#L39).
-
-Usage
 ---
 
-At the moment there's no UI and TV-specific API credentials are hardcoded in the app.
+## English
 
-1. Create a pairing for the TV. [You can use Pylips for this.](https://github.com/eslavnov/pylips)
-2. Add the username and password to
-    [app/src/main/java/uk/org/fancy/AndroidTvHomeKit/Philips/Television.java](app/src/main/java/uk/org/fancy/AndroidTvHomeKit/Philips/Television.java#L32-33).
-    ```java
-    private final String username = "...";
-    private final String password = "...";
-    ```
-3. Disable unauthenticated requests. (Optional but recommended if you don't need to access the HAP server directly.)
+### Overview
+AndroidTV-HomeKit turns your Android TV into a native HomeKit Television accessory without needing an external Raspberry Pi, Mac, or Homebridge hub.
 
-    In
-    [app/src/main/java/uk/org/fancy/AndroidTvHomeKit/HomeKitService.java](app/src/main/java/uk/org/fancy/AndroidTvHomeKit/HomeKitService.java#L56)
-    replace
-    ```java
-    // Allow unauthenticated requests
-    accessoryServer.getRoot().getRegistry().setAllowUnauthenticatedRequests(true);
-    ```
-    with
-    ```java
-    // Allow unauthenticated requests
-    accessoryServer.getRoot().getRegistry().setAllowUnauthenticatedRequests(false);
-    ```
-4. Build the app.
-    ```
-    ./gradlew buildDebug packageDebug
-    ```
-5. Install the app.
-    ```
-    # -r updates the app if you already have it installed
-    adb install -r app/build/outputs/apk/debug/app-debug.apk
-    ```
-6. Start the HomeKit service.
-    ```
-    # This usually only has to be done after installing for the first time
-    # It will start when Android starts and when installing and the service is running
-    adb shell am start-service uk.org.fancy.AndroidTvHomeKit/.HomeKitService
-    ```
+### Compatibility
+- **All Android TV Devices (Universal Mode):** Works on Sony, TCL, Xiaomi, Chromecast with Google TV, Philips, and other Android TV / Google TV boxes (SDK 26+).
+  - Standby Power (On / Sleep via Android PowerManager / KeyEvents)
+  - Volume Up / Down via Remote Widget & iPhone physical volume buttons
+  - D-Pad (Up, Down, Left, Right), Select (OK), Back, Home, and Play/Pause remote control
+  - App launching (Netflix, YouTube, Prime Video, etc.)
+- **Philips Android TV (Enhanced Mode):**
+  - Philips JointSPACE v6 REST API integration
+  - Ambilight control exposed as an independent Apple Home Lightbulb (Power, Brightness, Color Hue & Saturation)
+  - Direct HDMI 1–4 source switching and TV Tuner channels
 
-#### Why do I need to create a pairing?
+### Key Improvements in this Fork
+- **Fixed "Accessory is already in another home" Pairing Bug:** Fixed Apple HAP `X-HM://` QR code bit-shift layout (category shifted `<< 31`, flags shifted `<< 27`, preventing bit 30 from falsely reporting "already paired").
+- **Uppercase MAC & Valid Setup Hash:** Full compliance with Apple HomeKit mDNS TXT records (`id`, `sh`, `sf=1`).
+- **On-Screen Dashboard:** Displays live QR code, 8-digit setup PIN (`031-45-154`), and connection status.
 
-The permissions the service needs are only available to system apps and apps signed with Philips' key, so the TV's
-public REST API is used instead.
+### Installation & Pairing
+1. Build the APK or download from releases:
+   ```bash
+   .\gradlew.bat assembleDebug
+   ```
+2. Install via ADB:
+   ```bash
+   adb connect <TV_IP_ADDRESS>:5555
+   adb install -r app/build/outputs/apk/debug/app-debug.apk
+   ```
+3. Open dashboard:
+   ```bash
+   adb shell am start -n uk.org.fancy.AndroidTvHomeKit/.MainActivity
+   ```
+4. Open the **Apple Home** app on your iPhone or iPad, tap **Add Accessory**, and scan the QR code or enter `031-45-154`.
 
-#### Why does this use vulnerabilities in Philips' API to generate a nonce for digest authentication?
+---
 
-1. The API uses HTTPS so assuming each TV generates it's own certificate and clients watch the certificate to make sure
-    it doesn't change the digest authentication isn't necessary.
-2. Restlet's digest authentication doesn't seem very stable and crashes a lot in a way that the service is still able
-    to run so it has to be restarted manually.
+## Türkçe
 
-### Custom characteristics
+### Genel Bakış
+AndroidTV-HomeKit, harici bir Raspberry Pi, Mac veya Homebridge sunucusu gerektirmeden doğrudan Android TV üzerinde çalışan yerel bir Apple HomeKit köprüsüdür.
 
-UUID                                 | Name                     | -
--------------------------------------|--------------------------|----
-CA7897C2-4B46-448D-AF68-29C686B730F4 | TV Input Framework ID    | String, read only
-CA7897C3-4B46-448D-AF68-29C686B730F4 | Application ID           | String, read only
-CA7897C4-4B46-448D-AF68-29C686B730F4 | Ambilight Colour Sync    | Enum, 0-19, read/write/event
-CA7897C5-4B46-448D-AF68-29C686B730F4 | Colour Variation         | Integer, 0-255, read/write/event
-CA7897C6-4B46-448D-AF68-29C686B730F4 | Colour Variation Speed   | Integer, 0-255, read/write/event
+### Uyumluluk
+- **Tüm Android TV Cihazları (Evrensel Mod):** Sony, TCL, Xiaomi, Chromecast, Philips vb. tüm Android TV / Google TV cihazlarında temel TV kontrollerini destekler:
+  - Açma / Kapatma (Uyku moduna alma / uyandırma)
+  - iPhone Denetim Merkezi Remote kumandası (Yön tuşları, OK, Geri, Oynat/Duraklat)
+  - iPhone'un yan ses açma/kısma tuşlarıyla TV ses kontrolü
+  - Yüklü uygulamaları (Netflix, YouTube vb.) giriş olarak başlatma
+- **Philips Android TV'ler (Gelişmiş Mod):**
+  - Philips JointSPACE v6 yerel API entegrasyonu
+  - Apple Ev içinde bağımsız **Ambilight** ışığı (Açma/kapatma, parlaklık ve renk ayarı)
+  - Doğrudan HDMI 1–4 ve TV kanalları arası geçiş
+
+### Bu Sürümde Yapılan Düzeltmeler
+- **"Aksesuar zaten başka bir evde" Eşleşme Hatası Çözüldü:** `X-HM://` QR kodundaki bit kaydırma hatası giderildi (30. bit artık sahte "eşleşti" uyarısı vermez).
+- **Büyük Harf MAC ve Kurulum Özeti:** Apple HAP mDNS spesifikasyonuna tam uyum sağlandı.
+- **TV Dashboard Ekranı:** TV arayüzünde canlı QR kod, 8 haneli PIN (`031-45-154`) ve bağlantı durumu.
+
+### Kurulum ve Eşleştirme
+1. Derleyin veya APK'yı indirin:
+   ```bash
+   .\gradlew.bat assembleDebug
+   ```
+2. ADB ile televizyona yükleyin:
+   ```bash
+   adb connect <TV_IP_ADRESI>:5555
+   adb install -r app/build/outputs/apk/debug/app-debug.apk
+   ```
+3. Dashboard ekranını açın:
+   ```bash
+   adb shell am start -n uk.org.fancy.AndroidTvHomeKit/.MainActivity
+   ```
+4. iPhone/iPad **Ev (Home)** uygulamasından **Aksesuar Ekle** seçeneğine dokunup QR kodu okutun (veya `031-45-154` kodunu girin).
+
+---
+
+## License / Lisans
+Open source, based on `samuelthomas2774/android-tv-homekit`.
