@@ -221,5 +221,14 @@ Bildirirken televizyonunuzun **markasını, tam model kodunu ve Android sürüm�
 
 ---
 
+## Destek Olun / Support
+Bu projeyi faydalı bulduysanız ve geliştirmeleri desteklemek isterseniz bir kahve ısmarlayabilirsiniz:
+
+[![Buy Me A Coffee](https://img.shields.io/badge/Buy%20Me%20A%20Coffee-ichzara-yellow?style=for-the-badge&logo=buy-me-a-coffee&logoColor=black)](https://buymeacoffee.com/ichzara)
+
+Doğrudan bağlantı: **[buymeacoffee.com/ichzara](https://buymeacoffee.com/ichzara)**
+
+---
+
 ## Lisans / License
 MIT License. Based on original project by `samuelthomas2774/android-tv-homekit`.
